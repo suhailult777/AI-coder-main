@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Code Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Segoe+UI:wght@400;600&display=swap"
+        rel="stylesheet">
+    <script src="script.js"></script>
+    <style>
+        /* Quick auth modal styles for testing */
+        .auth-modal-overlay.active {
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+
+        .auth-card {
+            background: var(--input-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            min-width: 400px;
+        }
+
+        .auth-header {
+            text-align: center;
+            padding: 32px 24px 0 24px;
+        }
+
+        .sparkles-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--button-bg-start), var(--button-bg-end));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            margin: 0 auto 16px;
+        }
+
+        .auth-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .brand-text {
+            background: linear-gradient(135deg, var(--button-bg-start), var(--button-bg-end));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .auth-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 0;
+        }
+
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 1px solid var(--border-color);
+            margin-top: 24px;
+        }
+
+        .auth-tab {
+            background: none;
+            border: none;
+            padding: 16px;
+            font-size: 16px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .auth-tab.active {
+            color: var(--button-bg-start);
+        }
+
+        .auth-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--button-bg-start);
+        }
+
+        .auth-content {
+            padding: 24px;
+        }
+
+        .auth-tab-content {
+            display: none;
+        }
+
+        .auth-tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            font-size: 16px;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--button-bg-start);
+            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .auth-submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--button-bg-start), var(--button-bg-end));
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
+        }
+
+        .auth-divider {
+            position: relative;
+            text-align: center;
+            margin: 24px 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .auth-divider span {
+            background: var(--input-bg);
+            padding: 0 16px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            position: relative;
+            top: -8px;
+        }
+
+        .google-auth-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .google-auth-btn:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .google-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .auth-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 16px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .auth-error .error-text {
+            color: #ef4444;
+            font-size: 14px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .auth-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            z-index: 1001;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .auth-modal-close:hover {
+            background: rgba(0, 0, 0, 0.1);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Side Navigation -->
+    <div class="sidenav" id="mySidenav">
+        <div class="sidenav-header">
+            <div class="sidenav-logo">AI Code</div>
+            <button class="close-btn" id="closeNav">&times;</button>
+        </div>
+        <div class="sidenav-content">
+            <ul>
+                <li><a href="#">Pricing</a></li>
+                <li><a href="#">Features</a></li>
+                <li><a href="#">GitHub</a></li>
+                <li><a href="#">Discord</a></li>
+                <li><a href="#">Careers</a></li>
+                <li><a href="#">Blog</a></li>
+            </ul>
+            <div class="sidenav-actions">
+                <button class="download-button" id="mobileSignInButton">Sign In</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay for side navigation -->
+    <div class="overlay" id="overlay"></div>
+
+    <header>
+        <button class="menu-btn" id="openNav">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="logo">AI Code</div>
+        <nav class="desktop-nav">
+            <ul>
+                <li><a href="#">Pricing</a></li>
+                <li><a href="#">Features</a></li>
+                <li><a href="#">GitHub</a></li>
+                <li><a href="#">Discord</a></li>
+                <li><a href="#">Careers</a></li>
+                <li><a href="#">Blog</a></li>
+            </ul>
+        </nav>
+        <div class="header-actions">
+            <button id="themeToggle" class="theme-toggle-button" title="Toggle theme">☀️</button>
+            <button id="signInButton" class="download-button sign-in">Sign In</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <h1>The AI-Powered Code Editor</h1>
+        <p>Supercharge your coding workflow with AI-powered code generation, now featuring Google Gemini 2.0 Flash.</p>
+
+        <!-- Start: Example Prompts -->
+        <div class="example-prompts">
+            <h4>Try these examples:</h4>
+            <button onclick="setPrompt('Create a simple HTML button')">Simple HTML Button</button>
+            <button onclick="setPrompt('Generate CSS for a centered div with a blue background')">Centered Div
+                CSS</button>
+            <button onclick="setPrompt('Write a JavaScript function to add two numbers')">JS Add Function</button>
+            <button onclick="setPrompt('Python code to read a file line by line')">Python Read File</button>
+        </div>
+        <!-- End: Example Prompts -->
+
+        <div class="input-area">
+            <textarea id="prompt"
+                placeholder="Describe the code you'd like the AI to write (e.g., &quot;a function to sort an array in JavaScript&quot;, &quot;HTML for a simple contact form&quot;, &quot;Python code to calculate the Fibonacci sequence&quot;)."></textarea>
+            <!-- Language dropdown -->
+            <select id="language-select" aria-label="Select Language">
+                <option value="html">HTML</option>
+                <option value="php">PHP</option>
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+                <option value="java">Java</option>
+                <option value="csharp">C#</option>
+                <option value="cpp">C++</option>
+                <option value="ruby">Ruby</option>
+                <option value="go">Go</option>
+                <option value="rust">Rust</option>
+                <option value="swift">Swift</option>
+                <option value="kotlin">Kotlin</option>
+                <option value="sql">SQL</option>
+                <option value="css">CSS</option>
+                <option value="bash">Bash</option>
+                <option value="auto" selected>Auto-Detect</option>
+            </select>
+            <!-- Model selector moved inside input-area -->
+            <div class="model-selector">
+                <label for="model-select">Model:</label>
+                <select id="model-select">
+                    <option value="google/gemini-2.0-flash-exp:free" selected>Gemini 2.0 Flash (Free)</option>
+                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder (Free)</option>
+                    <option value="google/gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental</option>
+                    <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free)</option>
+                    <option value="meta-llama/llama-3.1-405b:free">Llama 3.1 405B (Free)</option>
+                </select>
+            </div>
+            <button id="generateButton" onclick="generateCode()">Enter</button> <!-- Restored inline onclick -->
+        </div>
+        <div class="output-container">
+            <div class="output-header">
+                <span class="output-title">Generated Code</span>
+                <!-- Model selector removed from here -->
+                <button id="copyButton" class="copy-button" title="Copy to clipboard">
+                    <span>Copy</span>
+                </button>
+            </div>
+            <pre><code id="output" class="language-html"></code></pre>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="auth-modal-overlay" style="display: flex !important; opacity: 0; visibility: hidden;">
+        <div class="auth-modal">
+            <button class="auth-modal-close" id="closeAuthModal">&times;</button>
+
+            <!-- Auth Card -->
+            <div class="auth-card">
+                <!-- Header -->
+                <div class="auth-header">
+                    <div class="auth-logo">
+                        <div class="sparkles-icon">✨</div>
+                    </div>
+                    <h1 class="auth-title">
+                        Welcome to <span class="brand-text">AI-SuperProductivity</span>
+                    </h1>
+                    <p class="auth-subtitle">Boost your productivity with AI-powered tools</p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">Login</button>
+                    <button class="auth-tab" data-tab="register">Register</button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="auth-content">
+                    <!-- Login Form -->
+                    <div id="loginTab" class="auth-tab-content active">
+                        <form id="loginForm" class="auth-form">
+                            <div class="form-group">
+                                <label for="loginEmail">Email</label>
+                                <input type="email" id="loginEmail" name="email" required>
+                                <span class="error-message" id="loginEmailError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="loginPassword">Password</label>
+                                <input type="password" id="loginPassword" name="password" required>
+                                <span class="error-message" id="loginPasswordError"></span>
+                            </div>
+                            <button type="submit" class="auth-submit-btn">
+                                <span class="btn-text">Sign In</span>
+                                <span class="btn-loader" style="display: none;">
+                                    <span class="spinner"></span>
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Register Form -->
+                    <div id="registerTab" class="auth-tab-content">
+                        <form id="registerForm" class="auth-form">
+                            <div class="form-group">
+                                <label for="registerEmail">Email</label>
+                                <input type="email" id="registerEmail" name="email" required>
+                                <span class="error-message" id="registerEmailError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPassword">Password</label>
+                                <input type="password" id="registerPassword" name="password" required>
+                                <span class="error-message" id="registerPasswordError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirm Password</label>
+                                <input type="password" id="confirmPassword" name="confirmPassword" required>
+                                <span class="error-message" id="confirmPasswordError"></span>
+                            </div>
+                            <button type="submit" class="auth-submit-btn">
+                                <span class="btn-text">Create Account</span>
+                                <span class="btn-loader" style="display: none;">
+                                    <span class="spinner"></span>
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="auth-divider">
+                        <span>or continue with</span>
+                    </div>
+
+                    <!-- Google Auth Button -->
+                    <button id="googleAuthBtn" class="google-auth-btn">
+                        <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="#4285F4"
+                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853"
+                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05"
+                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                            <path fill="#EA4335"
+                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        Continue with Google
+                    </button>
+
+                    <!-- Error Alert -->
+                    <div id="authError" class="auth-error" style="display: none;">
+                        <div class="error-icon">⚠️</div>
+                        <span class="error-text"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+    </script>
+</body>
+
+</html>
