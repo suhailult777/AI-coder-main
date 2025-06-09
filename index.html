@@ -11,265 +11,6 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Segoe+UI:wght@400;600&display=swap"
         rel="stylesheet">
-    <script src="script.js"></script>
-    <style>
-        /* Quick auth modal styles for testing */
-        .auth-modal-overlay.active {
-            display: flex !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-        }
-
-        .auth-card {
-            background: var(--input-bg);
-            border-radius: 16px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            min-width: 400px;
-        }
-
-        .auth-header {
-            text-align: center;
-            padding: 32px 24px 0 24px;
-        }
-
-        .sparkles-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--button-bg-start), var(--button-bg-end));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: white;
-            margin: 0 auto 16px;
-        }
-
-        .auth-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .brand-text {
-            background: linear-gradient(135deg, var(--button-bg-start), var(--button-bg-end));
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .auth-subtitle {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 0;
-        }
-
-        .auth-tabs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            border-bottom: 1px solid var(--border-color);
-            margin-top: 24px;
-        }
-
-        .auth-tab {
-            background: none;
-            border: none;
-            padding: 16px;
-            font-size: 16px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s ease;
-        }
-
-        .auth-tab.active {
-            color: var(--button-bg-start);
-        }
-
-        .auth-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--button-bg-start);
-        }
-
-        .auth-content {
-            padding: 24px;
-        }
-
-        .auth-tab-content {
-            display: none;
-        }
-
-        .auth-tab-content.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            color: var(--text-primary);
-            font-weight: 500;
-            margin-bottom: 6px;
-            font-size: 14px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid var(--input-border);
-            border-radius: 8px;
-            background: var(--input-bg);
-            color: var(--input-text);
-            font-size: 16px;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--button-bg-start);
-            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
-        }
-
-        .error-message {
-            color: #ef4444;
-            font-size: 12px;
-            margin-top: 4px;
-            display: block;
-        }
-
-        .auth-submit-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--button-bg-start), var(--button-bg-end));
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .auth-submit-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
-        }
-
-        .auth-divider {
-            position: relative;
-            text-align: center;
-            margin: 24px 0;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .auth-divider span {
-            background: var(--input-bg);
-            padding: 0 16px;
-            color: var(--text-secondary);
-            font-size: 12px;
-            position: relative;
-            top: -8px;
-        }
-
-        .google-auth-btn {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            background: white;
-            color: #374151;
-            border: 1px solid #d1d5db;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .google-auth-btn:hover {
-            background: #f9fafb;
-            border-color: #9ca3af;
-        }
-
-        .google-icon {
-            width: 20px;
-            height: 20px;
-        }
-
-        .auth-error {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 16px;
-            display: none;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .auth-error .error-text {
-            color: #ef4444;
-            font-size: 14px;
-        }
-
-        .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid transparent;
-            border-top: 2px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .auth-modal-close {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            z-index: 1001;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-        }
-
-        .auth-modal-close:hover {
-            background: rgba(0, 0, 0, 0.1);
-            color: var(--text-primary);
-        }
-    </style>
 </head>
 
 <body>
@@ -381,7 +122,7 @@
     </div>
 
     <!-- Auth Modal -->
-    <div id="authModal" class="auth-modal-overlay" style="display: flex !important; opacity: 0; visibility: hidden;">
+    <div id="authModal" class="auth-modal-overlay">
         <div class="auth-modal">
             <button class="auth-modal-close" id="closeAuthModal">&times;</button>
 
@@ -439,6 +180,12 @@
                             <div class="form-group">
                                 <label for="registerPassword">Password</label>
                                 <input type="password" id="registerPassword" name="password" required>
+                                <div class="password-strength" id="passwordStrength" style="display: none;">
+                                    <div class="strength-bar">
+                                        <div class="strength-fill"></div>
+                                    </div>
+                                    <span class="strength-text"></span>
+                                </div>
                                 <span class="error-message" id="registerPasswordError"></span>
                             </div>
                             <div class="form-group">
@@ -485,9 +232,7 @@
         </div>
     </div>
 
-    <script>
-
-    </script>
+    <script src="script.js"></script>
 </body>
 
 </html>

@@ -480,20 +480,29 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('Auth modal element:', authModal); // Debug log
 
             // Show the modal
-            authModal.style.opacity = '1';
-            authModal.style.visibility = 'visible';
-            authModal.classList.add('active');
+            authModal.classList.add('active'); // Use class to control visibility and opacity
             document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            // Focus first element when modal opens, with a slight delay for transition
+            setTimeout(() => {
+                const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (firstFocusable) {
+                    firstFocusable.focus();
+                }
+                trapFocus(authModal); // Apply focus trapping
+            }, 150); // Delay should be similar to CSS transition time
         });
     }
 
     // Close auth modal
     function closeModal() {
-        authModal.style.opacity = '0';
-        authModal.style.visibility = 'hidden';
-        authModal.classList.remove('active');
+        authModal.classList.remove('active'); // Use class to control visibility and opacity
         document.body.style.overflow = ''; // Restore scrolling
         clearAuthErrors();
+        // Optionally, return focus to the button that opened the modal
+        if (document.activeElement === authModal || authModal.contains(document.activeElement)) {
+            if (signInButton) signInButton.focus();
+            else if (mobileSignInButton) mobileSignInButton.focus();
+        }
     }
 
     if (closeAuthModal) {
@@ -535,7 +544,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function validatePassword(password) {
-        return password.length >= 6;
+        return password && password.length >= 6;
+    }
+
+    function getPasswordStrength(password) {
+        if (!password) return { strength: 0, text: 'Enter a password' };
+        if (password.length < 6) return { strength: 1, text: 'Too short' };
+        if (password.length < 8) return { strength: 2, text: 'Weak' };
+
+        let score = 2;
+        if (/[A-Z]/.test(password)) score++;
+        if (/[0-9]/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++;
+
+        if (score >= 5) return { strength: 4, text: 'Strong' };
+        if (score >= 4) return { strength: 3, text: 'Good' };
+        return { strength: 2, text: 'Fair' };
     }
 
     function showFieldError(fieldId, message) {
@@ -573,6 +597,61 @@ document.addEventListener('DOMContentLoaded', function () {
         authError.style.display = 'none';
     }
 
+    function switchToLoginTab(email = '') {
+        // Find and activate the login tab
+        const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+        const registerTab = document.querySelector('.auth-tab[data-tab="register"]');
+        const loginTabContent = document.getElementById('loginTab');
+        const registerTabContent = document.getElementById('registerTab');
+
+        if (loginTab && registerTab && loginTabContent && registerTabContent) {
+            // Update active tab
+            authTabs.forEach(t => t.classList.remove('active'));
+            loginTab.classList.add('active');
+
+            // Add highlight effect to draw attention to the tab switch
+            loginTab.classList.add('highlight');
+            setTimeout(() => {
+                loginTab.classList.remove('highlight');
+            }, 600);
+
+            // Update active content
+            authTabContents.forEach(content => content.classList.remove('active'));
+            loginTabContent.classList.add('active');
+
+            // Pre-fill email if provided
+            if (email) {
+                const loginEmailInput = document.getElementById('loginEmail');
+                if (loginEmailInput) {
+                    loginEmailInput.value = email;
+                    // Focus on password field since email is already filled
+                    const loginPasswordInput = document.getElementById('loginPassword');
+                    if (loginPasswordInput) {
+                        setTimeout(() => {
+                            loginPasswordInput.focus();
+                            // Add a subtle highlight to the password field
+                            loginPasswordInput.style.boxShadow = '0 0 0 2px rgba(66, 133, 244, 0.3)';
+                            setTimeout(() => {
+                                loginPasswordInput.style.boxShadow = '';
+                            }, 1000);
+                        }, 300);
+                    }
+                }
+            }
+
+            // Clear any existing errors
+            clearAuthErrors();
+
+            // Show a helpful message with the user's email
+            setTimeout(() => {
+                const message = email
+                    ? `Welcome! Your account (${email}) is ready. Please enter your password to log in.`
+                    : 'Your account is ready! Please enter your credentials to log in.';
+                showAuthError(message, true);
+            }, 400);
+        }
+    }
+
     function showAuthError(message, isSuccess = false) {
         const errorText = authError.querySelector('.error-text');
         if (errorText) {
@@ -587,12 +666,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const btnLoader = button.querySelector('.btn-loader');
 
         if (isLoading) {
-            btnText.style.display = 'none';
-            btnLoader.style.display = 'flex';
+            button.classList.add('loading'); // Add loading class for spinner visibility
             button.disabled = true;
         } else {
-            btnText.style.display = 'block';
-            btnLoader.style.display = 'none';
+            button.classList.remove('loading'); // Remove loading class
             button.disabled = false;
         }
     }
@@ -630,25 +707,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (hasErrors) return;
 
-            // Simulate login process
+            // Real login process
             setButtonLoading(submitBtn, true);
 
             try {
-                // Simulate API call delay
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
 
-                // For demo purposes, we'll just show a success message
-                // In a real app, you would make an API call here
-                console.log('Login attempt:', { email, password });
+                const data = await response.json();
 
-                // Simulate successful login
-                showAuthError('Demo: Login successful! (This is just a UI demo)', true);
+                if (!response.ok) {
+                    throw new Error(data.error || 'Login failed');
+                }
+
+                // Store user data
+                window.currentUser = data;
+                updateUIForLoggedInUser(data);
+
+                showAuthError('Login successful! Welcome back.', true);
                 setTimeout(() => {
                     closeModal();
-                }, 2000);
+                }, 1500);
 
             } catch (error) {
-                showAuthError('Login failed. Please try again.');
+                console.error('Login error:', error);
+                showAuthError(error.message || 'Login failed. Please try again.');
             } finally {
                 setButtonLoading(submitBtn, false);
             }
@@ -703,24 +792,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (hasErrors) return;
 
-            // Simulate registration process
+            // Real registration process
             setButtonLoading(submitBtn, true);
 
             try {
-                // Simulate API call delay
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
 
-                // For demo purposes, we'll just show a success message
-                console.log('Registration attempt:', { email, password });
+                const data = await response.json();
 
-                // Simulate successful registration
-                showAuthError('Demo: Account created successfully! (This is just a UI demo)', true);
+                if (!response.ok) {
+                    throw new Error(data.error || 'Registration failed');
+                }
+
+                // Clear the registration form
+                registerForm.reset();
+
+                // Show success message
+                showAuthError('Account created successfully! Please log in with your new credentials.', true);
+
+                // Switch to login tab after a brief delay
                 setTimeout(() => {
-                    closeModal();
-                }, 2000);
+                    switchToLoginTab(email);
+                }, 1500);
 
             } catch (error) {
-                showAuthError('Registration failed. Please try again.');
+                console.error('Registration error:', error);
+                showAuthError(error.message || 'Registration failed. Please try again.');
             } finally {
                 setButtonLoading(submitBtn, false);
             }
@@ -733,22 +837,44 @@ document.addEventListener('DOMContentLoaded', function () {
             clearAuthErrors();
 
             try {
-                // Simulate Google auth delay
                 googleAuthBtn.style.opacity = '0.7';
                 googleAuthBtn.disabled = true;
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Import Firebase functions dynamically
+                const { mockGoogleSignIn } = await import('./firebase-config.js');
 
-                // For demo purposes, we'll just show a success message
-                console.log('Google auth attempt');
+                // Use mock Google sign-in for demo (replace with real Firebase in production)
+                const user = await mockGoogleSignIn();
+                const idToken = await user.getIdToken();
 
-                showAuthError('Demo: Google authentication successful! (This is just a UI demo)', true);
+                // Send token to backend for verification
+                const response = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ idToken })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Google authentication failed');
+                }
+
+                // Store user data
+                window.currentUser = data;
+                updateUIForLoggedInUser(data);
+
+                showAuthError('Google authentication successful! Welcome to AI-SuperProductivity.', true);
                 setTimeout(() => {
                     closeModal();
-                }, 2000);
+                }, 1500);
 
             } catch (error) {
-                showAuthError('Google authentication failed. Please try again.');
+                console.error('Google auth error:', error);
+                showAuthError(error.message || 'Google authentication failed. Please try again.');
             } finally {
                 googleAuthBtn.style.opacity = '1';
                 googleAuthBtn.disabled = false;
@@ -815,6 +941,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setupErrorClearing();
 
+    // Setup password strength indicator
+    function setupPasswordStrength() {
+        const passwordInput = document.getElementById('registerPassword');
+        const strengthIndicator = document.getElementById('passwordStrength');
+        const strengthFill = strengthIndicator?.querySelector('.strength-fill');
+        const strengthText = strengthIndicator?.querySelector('.strength-text');
+
+        if (passwordInput && strengthIndicator && strengthFill && strengthText) {
+            passwordInput.addEventListener('input', () => {
+                const password = passwordInput.value;
+                const strength = getPasswordStrength(password);
+
+                if (password.length > 0) {
+                    strengthIndicator.style.display = 'block';
+                    strengthFill.className = `strength-fill strength-${strength.strength}`;
+                    strengthText.textContent = strength.text;
+                } else {
+                    strengthIndicator.style.display = 'none';
+                }
+            });
+        }
+    }
+
+    setupPasswordStrength();
+
     // Handle Escape key to close modal
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && authModal.classList.contains('active')) {
@@ -852,12 +1003,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Apply focus trapping when modal opens
-    signInButton.addEventListener('click', () => {
-        setTimeout(() => {
-            trapFocus(authModal);
-        }, 100);
-    });
+    // Apply focus trapping when modal opens via desktop button
+    // signInButton.addEventListener('click', () => { // This listener is now combined with the open logic
+    // setTimeout(() => {
+    // trapFocus(authModal);
+    // }, 100);
+    // });
 
     // Handle mobile sign in button
     const mobileSignInButton = document.getElementById('mobileSignInButton');
@@ -870,16 +1021,122 @@ document.addEventListener('DOMContentLoaded', function () {
             closeNav();
 
             // Then open auth modal
-            authModal.style.opacity = '1';
-            authModal.style.visibility = 'visible';
-            authModal.classList.add('active');
+            authModal.classList.add('active'); // Use class to control visibility and opacity
             document.body.style.overflow = 'hidden';
 
+            // Focus first element when modal opens, with a slight delay for transition
             setTimeout(() => {
-                trapFocus(authModal);
-            }, 100);
+                const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (firstFocusable) {
+                    firstFocusable.focus();
+                }
+                trapFocus(authModal); // Apply focus trapping
+            }, 150); // Delay should be similar to CSS transition time
         });
     }
     // --- End Auth Modal Logic ---
+
+    // --- User State Management ---
+
+    // Function to update UI when user is logged in
+    function updateUIForLoggedInUser(user) {
+        // Update sign in button to show user info or logout option
+        if (signInButton) {
+            signInButton.textContent = 'Logout';
+            signInButton.onclick = handleLogout;
+        }
+
+        // Update mobile sign in button
+        if (mobileSignInButton) {
+            mobileSignInButton.textContent = 'Logout';
+            mobileSignInButton.onclick = handleLogout;
+        }
+
+        console.log('User logged in:', user);
+    }
+
+    // Function to update UI when user is logged out
+    function updateUIForLoggedOutUser() {
+        if (signInButton) {
+            signInButton.textContent = 'Sign In';
+            signInButton.onclick = (e) => {
+                e.preventDefault();
+                authModal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                setTimeout(() => {
+                    const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                    if (firstFocusable) {
+                        firstFocusable.focus();
+                    }
+                    trapFocus(authModal);
+                }, 150);
+            };
+        }
+
+        if (mobileSignInButton) {
+            mobileSignInButton.textContent = 'Sign In';
+            mobileSignInButton.onclick = (e) => {
+                e.preventDefault();
+                closeNav();
+                authModal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                setTimeout(() => {
+                    const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                    if (firstFocusable) {
+                        firstFocusable.focus();
+                    }
+                    trapFocus(authModal);
+                }, 150);
+            };
+        }
+
+        window.currentUser = null;
+        console.log('User logged out');
+    }
+
+    // Handle logout
+    async function handleLogout(e) {
+        e.preventDefault();
+
+        try {
+            const response = await fetch('/api/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                updateUIForLoggedOutUser();
+                // Optional: Show logout success message
+                console.log('Logged out successfully');
+            } else {
+                console.error('Logout failed');
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    }
+
+    // Check if user is already logged in on page load
+    async function checkAuthStatus() {
+        try {
+            const response = await fetch('/api/user', {
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const user = await response.json();
+                window.currentUser = user;
+                updateUIForLoggedInUser(user);
+            } else {
+                updateUIForLoggedOutUser();
+            }
+        } catch (error) {
+            console.error('Auth check error:', error);
+            updateUIForLoggedOutUser();
+        }
+    }
+
+    // Check auth status on page load
+    checkAuthStatus();
 
 }); // End DOMContentLoaded
