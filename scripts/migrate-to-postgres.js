@@ -51,7 +51,7 @@ class MigrationTool {
 
       // Load existing data
       const users = await this.loadJsonUsers();
-      
+
       if (users.length === 0) {
         console.log('✅ No users found in JSON file - nothing to migrate');
         return;
@@ -83,7 +83,7 @@ class MigrationTool {
       await this.migrateUsers(users);
 
       console.log('\n✅ Migration completed successfully!');
-      
+
       if (!this.dryRun) {
         console.log('\n📝 Next steps:');
         console.log('1. Update your .env file to set USE_DATABASE=true');
@@ -110,7 +110,7 @@ class MigrationTool {
 
   async connectDatabase() {
     console.log('🔌 Connecting to PostgreSQL database...');
-    
+
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL not found in environment variables');
     }
@@ -146,15 +146,15 @@ class MigrationTool {
     console.log(`   Source: ${USERS_FILE}`);
     console.log(`   Target: PostgreSQL database`);
     console.log(`   Users to migrate: ${users.length}`);
-    
+
     if (this.dryRun) {
       console.log('   Mode: DRY RUN (no changes will be made)');
     }
-    
+
     if (this.backup) {
       console.log(`   Backup: ${BACKUP_FILE}`);
     }
-    
+
     console.log('\n👥 Users to migrate:');
     users.forEach((user, index) => {
       console.log(`   ${index + 1}. ${user.email} (${user.provider || 'local'})`);
@@ -163,8 +163,9 @@ class MigrationTool {
   }
 
   async confirmMigration() {
-    return new Promise((resolve) => {
-      const readline = require('readline').createInterface({
+    return new Promise(async (resolve) => {
+      const { createInterface } = await import('readline');
+      const readline = createInterface({
         input: process.stdin,
         output: process.stdout
       });
@@ -188,7 +189,7 @@ class MigrationTool {
 
   async migrateUsers(users) {
     console.log('🔄 Starting user migration...\n');
-    
+
     let migrated = 0;
     let skipped = 0;
     let errors = 0;
@@ -232,9 +233,10 @@ class MigrationTool {
 }
 
 // Run migration if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMainModule = process.argv[1] && process.argv[1].endsWith('migrate-to-postgres.js');
+if (isMainModule) {
   const migration = new MigrationTool();
-  migration.run();
+  migration.run().catch(console.error);
 }
 
 export default MigrationTool;
