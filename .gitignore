@@ -14,6 +14,10 @@ package-lock.json
 
 # User data (contains sensitive information)
 server/users.json
+server/users.backup.*.json
+
+# Database migration files
+scripts/migration-*.log
 
 # Logs
 logs

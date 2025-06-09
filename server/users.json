@@ -22,5 +22,13 @@
     "provider": "local",
     "createdAt": "2025-06-09T18:01:39.623Z",
     "updatedAt": "2025-06-09T18:01:39.625Z"
+  },
+  {
+    "id": "0b303f28-6d01-4199-83d5-fb73176b5f67",
+    "email": "midrisi@gmail.com",
+    "password": "$2a$12$MdLOcwuwjRiI0VAebzx5Uu9iuOIOxq5cF3gMT2x5mtCGyvzMNN8fe",
+    "provider": "local",
+    "createdAt": "2025-06-09T18:27:38.097Z",
+    "updatedAt": "2025-06-09T18:27:38.098Z"
   }
 ]

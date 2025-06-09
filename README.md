@@ -63,6 +63,10 @@ A modern, browser-based code editor enhanced with AI capabilities and full authe
    PORT=3000
    NODE_ENV=development
    SESSION_SECRET=your-super-secret-session-key-change-this-in-production
+
+   # Database Configuration (Optional - defaults to JSON storage)
+   USE_DATABASE=false
+   # DATABASE_URL=postgresql://user:pass@host:port/db?sslmode=require
    ```
 
 4. Start the development server:
@@ -72,6 +76,35 @@ A modern, browser-based code editor enhanced with AI capabilities and full authe
    ```
 
 5. Open your browser and navigate to `http://localhost:3000`
+
+### Database Setup (Optional)
+
+By default, the application uses JSON file storage for users. For production or enhanced features, you can upgrade to PostgreSQL:
+
+#### Quick Database Setup with Neon
+
+1. **Create Neon Account**: Go to [console.neon.tech](https://console.neon.tech) and create a free account
+2. **Get Connection String**: Copy your database URL from the Neon dashboard
+3. **Update Environment**:
+   ```env
+   USE_DATABASE=true
+   DATABASE_URL=postgresql://user:pass@host:port/db?sslmode=require
+   ```
+4. **Restart Application**: The database schema will be created automatically
+
+#### Migration from JSON
+
+If you have existing users in JSON format:
+
+```bash
+# See what would be migrated
+npm run migrate:dry-run
+
+# Migrate with backup
+npm run migrate:backup
+```
+
+For detailed database setup instructions, see [DATABASE_SETUP.md](DATABASE_SETUP.md).
 
 ### Configuration
 
