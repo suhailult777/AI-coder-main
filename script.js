@@ -1,6 +1,10 @@
 const API_KEY = "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"; // Replace with your actual API key
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// Global variables
+let isAgentMode = false;
+let userHasScrolled = false;
+
 // Function to set the prompt textarea value
 function setPrompt(text) {
     const promptTextarea = document.getElementById('prompt');
@@ -10,43 +14,280 @@ function setPrompt(text) {
     }
 }
 
-// Variable to track if user has manually scrolled
-let userHasScrolled = false;
+// Handle agent mode functionality
+async function handleAgentMode(prompt, output, generateButton, copyButton, copyButtonSpan) {
+    // --- Start: Feedback on button click ---
+    if (generateButton) {
+        generateButton.disabled = true;
+        generateButton.textContent = 'Starting Agent...';
+        generateButton.classList.add('generating');
+    }
+    // --- End: Feedback on button click ---
+
+    // Reset copy button state
+    if (copyButtonSpan) {
+        copyButtonSpan.textContent = 'Copy';
+        copyButton.classList.remove('copied');
+    }
+
+    // Clear existing content
+    output.className = '';
+    output.removeAttribute('data-highlighted');
+
+    // Show agent mode loading animation
+    output.innerHTML = `
+        <div class="loading-container agent-loading">
+            <span>🤖 Activating Agent Mode</span>
+            <span class="loading-dot">.</span>
+            <span class="loading-dot">.</span>
+            <span class="loading-dot">.</span>
+        </div>
+    `;
+
+    try {
+        // Check if user is authenticated for agent mode
+        if (!window.currentUser) {
+            output.innerHTML = `
+                <div class="auth-required-message">
+                    <h3>🔒 Authentication Required</h3>
+                    <p>Agent Mode requires authentication to access premium AI coding features.</p>
+                    <p>Please <strong>sign in</strong> to continue.</p>
+                    <button class="auth-required-btn" onclick="document.getElementById('signInButton').click()">
+                        Sign In to Access Agent Mode
+                    </button>
+                </div>
+            `;
+            if (generateButton) {
+                generateButton.disabled = false;
+                generateButton.textContent = 'Enter';
+                generateButton.classList.remove('generating');
+            }
+            return;
+        }
+
+        // Make sure we have a prompt
+        if (!prompt || prompt.trim() === '') {
+            output.innerHTML = `<span class="error-message">Please enter a prompt before activating agent mode.</span>`;
+            if (generateButton) {
+                generateButton.disabled = false;
+                generateButton.textContent = 'Enter';
+                generateButton.classList.remove('generating');
+            }
+            return;
+        }
+
+        // Send request to agent mode endpoint
+        const response = await fetch('/api/agent', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ prompt })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // Handle authentication errors specifically
+            if (response.status === 401) {
+                output.innerHTML = `
+                    <div class="auth-required-message">
+                        <h3>🔒 Authentication Required</h3>
+                        <p>Your session has expired or you are not signed in.</p>
+                        <p>Please <strong>sign in</strong> to access Agent Mode.</p>
+                        <button class="auth-required-btn" onclick="document.getElementById('signInButton').click()">
+                            Sign In to Access Agent Mode
+                        </button>
+                    </div>
+                `;
+                // Clear the user state
+                window.currentUser = null;
+                updateUIForLoggedOutUser();
+                return;
+            }
+            throw new Error(data.error || 'Agent mode activation failed');
+        }
+
+        // Show success message
+        output.innerHTML = `
+            <div class="agent-success">
+                <h3>🚀 Agent Mode Activated!</h3>
+                <p><strong>Your Query:</strong> ${prompt}</p>
+                <p id="agent-status-message">🤖 AI Agent is now processing your request</p>
+                <p id="agent-vscode-message">💡 VSCode will automatically open the created project when ready</p>
+                <div class="agent-status">
+                    <span class="status-indicator" id="status-indicator">●</span>
+                    <span id="status-text">Status: ${data.status}</span>
+                </div>
+                <div class="agent-info">
+                    <small>Agent Working Directory: ${data.agentPath}</small><br>
+                    <small>Started: ${new Date(data.timestamp).toLocaleTimeString()}</small>
+                </div>
+            </div>
+        `;
+
+        // Start polling for status updates
+        startAgentStatusPolling();
+
+    } catch (error) {
+        console.error('Agent mode error:', error);
+        output.innerHTML = `<span class="error-message">Error activating agent mode: ${error.message}</span>`;
+    } finally {
+        // --- Start: Restore button state ---
+        if (generateButton) {
+            generateButton.disabled = false;
+            generateButton.textContent = 'Enter';
+            generateButton.classList.remove('generating');
+        }
+        // --- End: Restore button state ---
+    }
+}
+
+// Function to poll for agent status updates
+let statusPollingInterval = null;
+
+function startAgentStatusPolling() {
+    // Clear any existing polling
+    if (statusPollingInterval) {
+        clearInterval(statusPollingInterval);
+    }
+
+    let completedStatuses = ['completed', 'error'];
+
+    statusPollingInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/agent/status', {
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const statusData = await response.json();
+                updateAgentStatusDisplay(statusData);
+
+                // Stop polling if agent is completed or errored
+                if (completedStatuses.includes(statusData.status)) {
+                    clearInterval(statusPollingInterval);
+                    statusPollingInterval = null;
+                }
+            } else if (response.status === 401) {
+                // Authentication error - stop polling and show auth message
+                clearInterval(statusPollingInterval);
+                statusPollingInterval = null;
+
+                const statusMessage = document.getElementById('agent-status-message');
+                if (statusMessage) {
+                    statusMessage.innerHTML = '🔒 Authentication required to check status';
+                }
+
+                // Update user state
+                window.currentUser = null;
+                updateUIForLoggedOutUser();
+            }
+        } catch (error) {
+            console.error('Error fetching agent status:', error);
+        }
+    }, 2000); // Poll every 2 seconds
+}
+
+function updateAgentStatusDisplay(statusData) {
+    const statusMessage = document.getElementById('agent-status-message');
+    const vscodeMessage = document.getElementById('agent-vscode-message');
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+
+    if (statusMessage) {
+        statusMessage.textContent = `🤖 ${statusData.message}`;
+    }
+
+    if (statusText) {
+        statusText.textContent = `Status: ${statusData.status}`;
+    }
+
+    if (statusIndicator) {
+        // Update indicator class and color based on status
+        statusIndicator.className = `status-indicator status-${statusData.status}`;
+
+        // Handle specific status updates
+        switch (statusData.status) {
+            case 'completed':
+                if (vscodeMessage && statusData.projectName) {
+                    vscodeMessage.innerHTML = `✅ Project "${statusData.projectName}" opened in VSCode!`;
+                }
+                break;
+            case 'error':
+                if (vscodeMessage) {
+                    vscodeMessage.innerHTML = `❌ ${statusData.message}`;
+                }
+                break;
+        }
+    }
+}
 
 async function generateCode() {
     // Reset the scroll tracking when starting a new generation
     userHasScrolled = false;
 
     const prompt = document.getElementById('prompt').value;
-    const outputContainer = document.querySelector('.output-container'); // Get the container
-    const output = document.getElementById('output');
-    const copyButton = document.getElementById('copyButton'); // Get copy button
-    const copyButtonSpan = copyButton ? copyButton.querySelector('span') : null; // Get button text span
-    const generateButton = document.getElementById('generateButton'); // Get the generate button
-    const modelSelect = document.getElementById('model-select'); // Get the model select dropdown
 
-    // --- Start: Show output container ---
+    // Check if we're in agent mode to determine which output container to use
+    isAgentMode = document.body.classList.contains('agent-mode');
+
+    // Get the appropriate output container and elements based on mode
+    let outputContainer, output, copyButton, copyButtonSpan;
+
+    if (isAgentMode) {
+        // Agent Mode - use agent output container
+        outputContainer = document.getElementById('agentModeOutput');
+        output = document.getElementById('agentOutput');
+        copyButton = document.getElementById('agentCopyButton');
+        // Hide normal mode output
+        const normalOutputContainer = document.getElementById('normalModeOutput');
+        if (normalOutputContainer) {
+            normalOutputContainer.style.display = 'none';
+        }
+    } else {
+        // Normal Mode - use normal output container
+        outputContainer = document.getElementById('normalModeOutput');
+        output = document.getElementById('normalOutput');
+        copyButton = document.getElementById('normalCopyButton');
+        // Hide agent mode output
+        const agentOutputContainer = document.getElementById('agentModeOutput');
+        if (agentOutputContainer) {
+            agentOutputContainer.style.display = 'none';
+        }
+    }
+
+    copyButtonSpan = copyButton ? copyButton.querySelector('span') : null;
+    const generateButton = document.getElementById('generateButton'); // Get the generate button
+
+    const modelSelect = isAgentMode
+        ? document.getElementById('agent-model-select')
+        : document.getElementById('model-select');
+
+    // --- Start: Show appropriate output container ---
     if (outputContainer) {
         outputContainer.style.display = 'block'; // Make it visible
     }
     // --- End: Show output container ---
 
+    // If in agent mode, handle differently
+    if (isAgentMode) {
+        return handleAgentMode(prompt, output, generateButton, copyButton, copyButtonSpan);
+    }
+
     // Get the selected model from the dropdown
     const selectedModel = modelSelect ? modelSelect.value : "google/gemini-2.0-flash-exp:free";
 
-    // Check if the selected model is a Gemini model
-    const isGeminiModel = selectedModel.includes('gemini');
+    // Check if it's a Gemini model for loading animations
+    const isGeminiModel = selectedModel.includes('google/gemini');
     const isGeminiFlash = selectedModel.includes('gemini-2.0-flash');
 
     // --- Start: Feedback on button click ---
     if (generateButton) {
         generateButton.disabled = true;
         generateButton.textContent = 'Generating...';
-
-        // Only add the pulse animation for Gemini models
-        if (isGeminiModel) {
-            generateButton.classList.add('generating'); // Add pulse animation class for Gemini models
-        }
+        generateButton.classList.add('generating'); // Add pulse animation
     }
     // --- End: Feedback on button click ---
 
@@ -65,7 +306,7 @@ async function generateCode() {
         // Special animation for Gemini Flash
         output.innerHTML = `
             <div class="loading-container flash-loading">
-                <span>Generating with Gemini Flash</span>
+                <span>⚡ Generating with Gemini Flash</span>
                 <span class="loading-dot">.</span>
                 <span class="loading-dot">.</span>
                 <span class="loading-dot">.</span>
@@ -75,17 +316,17 @@ async function generateCode() {
         // Animation for other Gemini models
         output.innerHTML = `
             <div class="loading-container gemini-loading">
-                <span>Generating with Gemini</span>
+                <span>💎 Generating with Gemini</span>
                 <span class="loading-dot">.</span>
                 <span class="loading-dot">.</span>
                 <span class="loading-dot">.</span>
             </div>
         `;
     } else {
-        // Standard animation for other models
+        // Generic animation for non-Gemini models (Qwen, DeepSeek, Llama)
         output.innerHTML = `
             <div class="loading-container">
-                <span>Generating code</span>
+                <span>🤖 Generating code...</span>
                 <span class="loading-dot">.</span>
                 <span class="loading-dot">.</span>
                 <span class="loading-dot">.</span>
@@ -280,21 +521,38 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Add event listener for model selection change
-    const modelSelect = document.getElementById('model-select');
-    if (modelSelect) {
+    const normalModeModelSelect = document.getElementById('model-select');
+    const agentModeModelSelect = document.getElementById('agent-model-select');
+
+    if (normalModeModelSelect) {
         // Set initial state based on default selection
         updateGeminiModelClass();
-
         // Update when model changes
-        modelSelect.addEventListener('change', updateGeminiModelClass);
+        normalModeModelSelect.addEventListener('change', updateGeminiModelClass);
+    }
+
+    if (agentModeModelSelect) {
+        // Update when agent model changes (all are Gemini so always add class)
+        agentModeModelSelect.addEventListener('change', updateGeminiModelClass);
     }
 
     // Function to update body class based on selected model
     function updateGeminiModelClass() {
-        const selectedModel = modelSelect.value;
-        const isGeminiModel = selectedModel.includes('gemini');
+        const currentMode = isAgentMode;
+        let selectedModel;
 
-        if (isGeminiModel) {
+        if (currentMode) {
+            // Agent mode - get from agent model selector
+            const agentModelSelect = document.getElementById('agent-model-select');
+            selectedModel = agentModelSelect ? agentModelSelect.value : '';
+        } else {
+            // Normal mode - get from normal model selector
+            const normalModelSelect = document.getElementById('model-select');
+            selectedModel = normalModelSelect ? normalModelSelect.value : '';
+        }
+
+        // Check if the selected model is a Gemini model
+        if (selectedModel.includes('google/gemini')) {
             document.body.classList.add('gemini-model-selected');
         } else {
             document.body.classList.remove('gemini-model-selected');
@@ -313,30 +571,36 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Add scroll event listener to detect manual scrolling
-    const outputElement = document.getElementById('output');
-    if (outputElement && outputElement.parentElement) {
-        const preElement = outputElement.parentElement;
-        preElement.addEventListener('scroll', function () {
-            // Check if this is a manual scroll during code generation
-            // We determine this by checking if the scroll position is not at the bottom
-            const isAtBottom = preElement.scrollHeight - preElement.scrollTop <= preElement.clientHeight + 10; // 10px tolerance
+    // Add scroll event listener to detect manual scrolling for both output containers
+    function setupScrollTracking(outputElementId) {
+        const outputElement = document.getElementById(outputElementId);
+        if (outputElement && outputElement.parentElement) {
+            const preElement = outputElement.parentElement;
+            preElement.addEventListener('scroll', function () {
+                // Check if this is a manual scroll during code generation
+                // We determine this by checking if the scroll position is not at the bottom
+                const isAtBottom = preElement.scrollHeight - preElement.scrollTop <= preElement.clientHeight + 10; // 10px tolerance
 
-            // If we're not at the bottom during generation, user has manually scrolled
-            if (!isAtBottom && outputElement.innerHTML.includes('loading-container') === false) {
-                userHasScrolled = true;
-            }
-        });
+                // If we're not at the bottom during generation, user has manually scrolled
+                if (!isAtBottom && outputElement.innerHTML.includes('loading-container') === false) {
+                    userHasScrolled = true;
+                }
+            });
 
-        // Reset scroll tracking when user scrolls back to bottom
-        preElement.addEventListener('scroll', function () {
-            const isAtBottom = preElement.scrollHeight - preElement.scrollTop <= preElement.clientHeight + 10;
-            if (isAtBottom) {
-                // If user manually scrolls back to bottom, resume auto-scrolling
-                userHasScrolled = false;
-            }
-        });
+            // Reset scroll tracking when user scrolls back to bottom
+            preElement.addEventListener('scroll', function () {
+                const isAtBottom = preElement.scrollHeight - preElement.scrollTop <= preElement.clientHeight + 10;
+                if (isAtBottom) {
+                    // If user manually scrolls back to bottom, resume auto-scrolling
+                    userHasScrolled = false;
+                }
+            });
+        }
     }
+
+    // Setup scroll tracking for both output containers
+    setupScrollTracking('normalOutput');
+    setupScrollTracking('agentOutput');
 
     // Side Navigation functionality
     const openNavBtn = document.getElementById('openNav');
@@ -377,39 +641,45 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Copy button functionality
-    const copyButton = document.getElementById('copyButton');
-    const outputCodeElement = document.getElementById('output');
+    // Copy button functionality - Updated to handle both Normal and Agent mode copy buttons
+    function setupCopyButton(copyButtonId, outputElementId) {
+        const copyButton = document.getElementById(copyButtonId);
+        const outputCodeElement = document.getElementById(outputElementId);
 
-    if (copyButton && outputCodeElement) {
-        copyButton.addEventListener('click', function () {
-            const codeToCopy = outputCodeElement.textContent;
-            if (codeToCopy) {
-                navigator.clipboard.writeText(codeToCopy).then(() => {
-                    // Success feedback
-                    const buttonSpan = copyButton.querySelector('span');
-                    buttonSpan.textContent = 'Copied!';
-                    copyButton.classList.add('copied');
+        if (copyButton && outputCodeElement) {
+            copyButton.addEventListener('click', function () {
+                const codeToCopy = outputCodeElement.textContent;
+                if (codeToCopy) {
+                    navigator.clipboard.writeText(codeToCopy).then(() => {
+                        // Success feedback
+                        const buttonSpan = copyButton.querySelector('span');
+                        buttonSpan.textContent = 'Copied!';
+                        copyButton.classList.add('copied');
 
-                    // Reset button after 2 seconds
-                    setTimeout(() => {
-                        buttonSpan.textContent = 'Copy';
-                        copyButton.classList.remove('copied');
-                    }, 2000);
-                }).catch(err => {
-                    console.error('Failed to copy code: ', err);
-                    // Optional: Provide error feedback on the button
-                    const buttonSpan = copyButton.querySelector('span');
-                    buttonSpan.textContent = 'Error';
-                    setTimeout(() => {
-                        buttonSpan.textContent = 'Copy';
-                    }, 2000);
-                });
-            } else {
-                console.warn('No code to copy.');
-            }
-        });
+                        // Reset button after 2 seconds
+                        setTimeout(() => {
+                            buttonSpan.textContent = 'Copy';
+                            copyButton.classList.remove('copied');
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy code: ', err);
+                        // Optional: Provide error feedback on the button
+                        const buttonSpan = copyButton.querySelector('span');
+                        buttonSpan.textContent = 'Error';
+                        setTimeout(() => {
+                            buttonSpan.textContent = 'Copy';
+                        }, 2000);
+                    });
+                } else {
+                    console.warn('No code to copy.');
+                }
+            });
+        }
     }
+
+    // Setup copy buttons for both Normal and Agent modes
+    setupCopyButton('normalCopyButton', 'normalOutput');
+    setupCopyButton('agentCopyButton', 'agentOutput');
 
     // --- Theme Toggle Logic ---
     const themeToggleButton = document.getElementById('themeToggle');
@@ -456,6 +726,163 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     // --- End Theme Toggle Logic ---
+
+    // --- Agent Mode Toggle Logic ---
+    const agentModeToggleButton = document.getElementById('agentModeToggle');
+    const agentModeIndicator = document.getElementById('agentModeIndicator');
+    const normalModePrompts = document.getElementById('normalModePrompts');
+    const agentModePrompts = document.getElementById('agentModePrompts');
+    const normalModeIcon = '🤖';
+    const agentModeIcon = '🚀';
+
+    // Function to set agent mode
+    function setAgentMode(enableAgentMode) {
+        const normalModeModelSelector = document.getElementById('normalModeModelSelector');
+        const agentModeModelSelector = document.getElementById('agentModeModelSelector');
+        const normalModeOutput = document.getElementById('normalModeOutput');
+        const agentModeOutput = document.getElementById('agentModeOutput');
+
+        // Update global variable
+        isAgentMode = enableAgentMode;
+
+        if (enableAgentMode) {
+            bodyElement.classList.add('agent-mode');
+            agentModeToggleButton.classList.add('active');
+            agentModeToggleButton.textContent = agentModeIcon;
+            agentModeToggleButton.title = 'Switch to Normal Mode';
+            localStorage.setItem('agentMode', 'true');
+
+            // Show agent mode indicator
+            if (agentModeIndicator) {
+                agentModeIndicator.style.display = 'inline-block';
+            }
+
+            // Switch example prompts
+            if (normalModePrompts) normalModePrompts.style.display = 'none';
+            if (agentModePrompts) agentModePrompts.style.display = 'block';
+
+            // Switch model selectors - Show Agent Mode (Gemini only), Hide Normal Mode
+            if (normalModeModelSelector) normalModeModelSelector.style.display = 'none';
+            if (agentModeModelSelector) agentModeModelSelector.style.display = 'flex';
+
+            // Switch output containers - Show Agent Mode Output, Hide Normal Mode Output
+            if (normalModeOutput) normalModeOutput.style.display = 'none';
+            if (agentModeOutput) agentModeOutput.style.display = 'none'; // Both hidden initially until code is generated
+
+            // Update main heading to indicate agent mode
+            const mainHeading = document.querySelector('h1');
+            if (mainHeading && !mainHeading.textContent.includes('Agent Mode')) {
+                mainHeading.textContent = 'The AI-Powered Code Editor - Agent Mode';
+            }
+
+            // Update description for agent mode
+            const description = document.querySelector('.main-content p');
+            if (description) {
+                description.textContent = 'Experience autonomous AI coding with enhanced capabilities, intelligent code generation, and advanced problem-solving features.';
+            }
+
+            // Update textarea placeholder for agent mode
+            const promptTextarea = document.getElementById('prompt');
+            if (promptTextarea) {
+                promptTextarea.placeholder = 'Describe complex systems, architectures, or advanced coding challenges you want the AI to build (e.g., "Build a full-stack e-commerce platform with payment integration", "Create a distributed system with microservices").';
+            }
+
+        } else {
+            bodyElement.classList.remove('agent-mode');
+            agentModeToggleButton.classList.remove('active');
+            agentModeToggleButton.textContent = normalModeIcon;
+            agentModeToggleButton.title = 'Switch to Agent Mode';
+            localStorage.setItem('agentMode', 'false');
+
+            // Hide agent mode indicator
+            if (agentModeIndicator) {
+                agentModeIndicator.style.display = 'none';
+            }
+
+            // Switch example prompts back to normal
+            if (normalModePrompts) normalModePrompts.style.display = 'block';
+            if (agentModePrompts) agentModePrompts.style.display = 'none';
+
+            // Switch model selectors - Show Normal Mode (All models), Hide Agent Mode
+            if (normalModeModelSelector) normalModeModelSelector.style.display = 'flex';
+            if (agentModeModelSelector) agentModeModelSelector.style.display = 'none';
+
+            // Switch output containers - Show Normal Mode Output, Hide Agent Mode Output
+            if (normalModeOutput) normalModeOutput.style.display = 'none';
+            if (agentModeOutput) agentModeOutput.style.display = 'none'; // Both hidden initially
+
+            // Reset main heading
+            const mainHeading = document.querySelector('h1');
+            if (mainHeading) {
+                mainHeading.textContent = 'The AI-Powered Code Editor';
+            }
+
+            // Reset description
+            const description = document.querySelector('.main-content p');
+            if (description) {
+                description.textContent = 'Supercharge your coding workflow with AI-powered code generation, now featuring Google Gemini 2.0 Flash.';
+            }
+
+            // Reset textarea placeholder
+            const promptTextarea = document.getElementById('prompt');
+            if (promptTextarea) {
+                promptTextarea.placeholder = 'Describe the code you\'d like the AI to write (e.g., "a function to sort an array in JavaScript", "HTML for a simple contact form", "Python code to calculate the Fibonacci sequence").';
+            }
+        }
+    }
+
+    // Check local storage for saved agent mode preference
+    const savedAgentMode = localStorage.getItem('agentMode');
+
+    // Initialize agent mode based on saved preference, but only if user is authenticated
+    // If user is not authenticated and tries to use agent mode, it will be handled by the toggle button
+    if (savedAgentMode === 'true') {
+        // We'll check authentication status first and then set agent mode if appropriate
+        // This will be handled in checkAuthStatus function
+    } else {
+        setAgentMode(false);
+    }
+
+    // Add click listener to the agent mode toggle button
+    if (agentModeToggleButton) {
+        agentModeToggleButton.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // Check if user is authenticated before allowing agent mode
+            if (!window.currentUser) {
+                // User is not authenticated, show auth modal
+                console.log('Agent mode requires authentication. Opening sign-in modal...');
+
+                // Store the intention to enable agent mode after login
+                localStorage.setItem('pendingAgentMode', 'true');
+
+                // Open auth modal
+                authModal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+
+                // Focus first element when modal opens
+                setTimeout(() => {
+                    const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                    if (firstFocusable) {
+                        firstFocusable.focus();
+                    }
+                    trapFocus(authModal);
+                }, 150);
+
+                // Show a message indicating why auth is required
+                setTimeout(() => {
+                    showAuthError('Please sign in to access Agent Mode - our premium AI coding assistant.', false);
+                }, 200);
+
+                return;
+            }
+
+            // User is authenticated, proceed with agent mode toggle
+            const isCurrentlyAgentMode = bodyElement.classList.contains('agent-mode');
+            setAgentMode(!isCurrentlyAgentMode);
+        });
+    }
+    // --- End Agent Mode Toggle Logic ---
 
     // --- Auth Modal Logic ---
     console.log('Setting up auth modal...'); // Debug log
@@ -730,7 +1157,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.currentUser = data;
                 updateUIForLoggedInUser(data);
 
-                showAuthError('Login successful! Welcome back.', true);
+                // Check if user was trying to access agent mode before login
+                const pendingAgentMode = localStorage.getItem('pendingAgentMode');
+                if (pendingAgentMode === 'true') {
+                    localStorage.removeItem('pendingAgentMode');
+                    // Activate agent mode after successful login
+                    setTimeout(() => {
+                        setAgentMode(true);
+                        showAuthError('Welcome to Agent Mode! You now have access to our premium AI coding assistant.', true);
+                    }, 1600);
+                } else {
+                    showAuthError('Login successful! Welcome back.', true);
+                }
+
                 setTimeout(() => {
                     closeModal();
                 }, 1500);
@@ -814,8 +1253,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Clear the registration form
                 registerForm.reset();
 
-                // Show success message
-                showAuthError('Account created successfully! Please log in with your new credentials.', true);
+                // Check if user was trying to access agent mode before registration
+                const pendingAgentMode = localStorage.getItem('pendingAgentMode');
+                if (pendingAgentMode === 'true') {
+                    showAuthError('Account created successfully! Please log in to access Agent Mode.', true);
+                } else {
+                    showAuthError('Account created successfully! Please log in with your new credentials.', true);
+                }
 
                 // Switch to login tab after a brief delay
                 setTimeout(() => {
@@ -867,7 +1311,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.currentUser = data;
                 updateUIForLoggedInUser(data);
 
-                showAuthError('Google authentication successful! Welcome to AI-SuperProductivity.', true);
+                // Check if user was trying to access agent mode before login
+                const pendingAgentMode = localStorage.getItem('pendingAgentMode');
+                if (pendingAgentMode === 'true') {
+                    localStorage.removeItem('pendingAgentMode');
+                    // Activate agent mode after successful login
+                    setTimeout(() => {
+                        setAgentMode(true);
+                        showAuthError('Welcome to Agent Mode! You now have access to our premium AI coding assistant.', true);
+                    }, 1600);
+                } else {
+                    showAuthError('Google authentication successful! Welcome to AI-SuperProductivity.', true);
+                }
+
                 setTimeout(() => {
                     closeModal();
                 }, 1500);
@@ -1052,6 +1508,12 @@ document.addEventListener('DOMContentLoaded', function () {
             mobileSignInButton.onclick = handleLogout;
         }
 
+        // Update agent mode toggle button to show it's available
+        if (agentModeToggleButton) {
+            agentModeToggleButton.title = 'Toggle Agent Mode';
+            agentModeToggleButton.classList.remove('auth-required');
+        }
+
         console.log('User logged in:', user);
     }
 
@@ -1090,6 +1552,12 @@ document.addEventListener('DOMContentLoaded', function () {
             };
         }
 
+        // Update agent mode toggle button to show authentication requirement
+        if (agentModeToggleButton) {
+            agentModeToggleButton.title = 'Agent Mode (Sign In Required)';
+            agentModeToggleButton.classList.add('auth-required');
+        }
+
         window.currentUser = null;
         console.log('User logged out');
     }
@@ -1106,6 +1574,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (response.ok) {
                 updateUIForLoggedOutUser();
+
+                // Disable agent mode on logout
+                const isCurrentlyAgentMode = bodyElement.classList.contains('agent-mode');
+                if (isCurrentlyAgentMode) {
+                    setAgentMode(false);
+                }
+
                 // Optional: Show logout success message
                 console.log('Logged out successfully');
             } else {
@@ -1127,12 +1602,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 const user = await response.json();
                 window.currentUser = user;
                 updateUIForLoggedInUser(user);
+
+                // Check if agent mode should be enabled
+                const savedAgentMode = localStorage.getItem('agentMode');
+                if (savedAgentMode === 'true') {
+                    setAgentMode(true);
+                }
             } else {
                 updateUIForLoggedOutUser();
+                // If user is not authenticated but agent mode was saved, disable it
+                const savedAgentMode = localStorage.getItem('agentMode');
+                if (savedAgentMode === 'true') {
+                    localStorage.setItem('agentMode', 'false');
+                    setAgentMode(false);
+                }
             }
         } catch (error) {
             console.error('Auth check error:', error);
             updateUIForLoggedOutUser();
+            // Disable agent mode if there's an error
+            const savedAgentMode = localStorage.getItem('agentMode');
+            if (savedAgentMode === 'true') {
+                localStorage.setItem('agentMode', 'false');
+                setAgentMode(false);
+            }
         }
     }
 

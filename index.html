@@ -54,23 +54,44 @@
             </ul>
         </nav>
         <div class="header-actions">
+            <button id="agentModeToggle" class="agent-mode-toggle-button" title="Toggle Agent Mode">🤖</button>
             <button id="themeToggle" class="theme-toggle-button" title="Toggle theme">☀️</button>
             <button id="signInButton" class="download-button sign-in">Sign In</button>
         </div>
     </header>
 
     <div class="main-content">
-        <h1>The AI-Powered Code Editor</h1>
+        <div class="title-container">
+            <h1>The AI-Powered Code Editor</h1>
+            <span id="agentModeIndicator" class="agent-mode-indicator" style="display: none;">⚡ AGENT MODE ACTIVE</span>
+        </div>
         <p>Supercharge your coding workflow with AI-powered code generation, now featuring Google Gemini 2.0 Flash.</p>
 
         <!-- Start: Example Prompts -->
-        <div class="example-prompts">
+        <div class="example-prompts" id="normalModePrompts">
             <h4>Try these examples:</h4>
             <button onclick="setPrompt('Create a simple HTML button')">Simple HTML Button</button>
             <button onclick="setPrompt('Generate CSS for a centered div with a blue background')">Centered Div
                 CSS</button>
             <button onclick="setPrompt('Write a JavaScript function to add two numbers')">JS Add Function</button>
             <button onclick="setPrompt('Python code to read a file line by line')">Python Read File</button>
+        </div>
+
+        <!-- Agent Mode Example Prompts -->
+        <div class="example-prompts" id="agentModePrompts" style="display: none;">
+            <h4>Agent Mode - Advanced Examples:</h4>
+            <button
+                onclick="setPrompt('Build a complete REST API with user authentication, database models, and error handling')">Full
+                REST API</button>
+            <button
+                onclick="setPrompt('Create a React component with state management, API integration, and responsive design')">React
+                Component</button>
+            <button
+                onclick="setPrompt('Implement a machine learning model for image classification with data preprocessing')">ML
+                Image Classifier</button>
+            <button
+                onclick="setPrompt('Design a microservices architecture with Docker, load balancing, and monitoring')">Microservices
+                Architecture</button>
         </div>
         <!-- End: Example Prompts -->
 
@@ -96,28 +117,52 @@
                 <option value="bash">Bash</option>
                 <option value="auto" selected>Auto-Detect</option>
             </select>
-            <!-- Model selector moved inside input-area -->
-            <div class="model-selector">
+            <!-- Model selector for Normal Mode -->
+            <div class="model-selector" id="normalModeModelSelector">
                 <label for="model-select">Model:</label>
                 <select id="model-select">
                     <option value="google/gemini-2.0-flash-exp:free" selected>Gemini 2.0 Flash (Free)</option>
                     <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder (Free)</option>
                     <option value="google/gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental</option>
                     <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free)</option>
-                    <option value="meta-llama/llama-3.1-405b:free">Llama 3.1 405B (Free)</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B (Free)</option>
+                </select>
+            </div>
+
+            <!-- Model selector for Agent Mode (Gemini only) -->
+            <div class="model-selector" id="agentModeModelSelector" style="display: none;">
+                <label for="agent-model-select">Agent Model:</label>
+                <select id="agent-model-select">
+                    <option value="google/gemini-2.0-flash-exp:free" selected>Gemini 2.0 Flash (Free)</option>
+                    <option value="google/gemini-2.0-flash-thinking-exp:free">Gemini 2.0 Flash Thinking (Free)</option>
+                    <option value="google/gemini-1.5-pro-latest:free">Gemini 1.5 Pro (Free)</option>
+                    <option value="google/gemini-1.5-flash:free">Gemini 1.5 Flash (Free)</option>
+                    <option value="google/gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental</option>
                 </select>
             </div>
             <button id="generateButton" onclick="generateCode()">Enter</button> <!-- Restored inline onclick -->
         </div>
-        <div class="output-container">
+
+        <!-- Normal Mode Output Container -->
+        <div class="output-container" id="normalModeOutput" style="display: none;">
             <div class="output-header">
-                <span class="output-title">Generated Code</span>
-                <!-- Model selector removed from here -->
-                <button id="copyButton" class="copy-button" title="Copy to clipboard">
+                <span class="output-title">Generated Code - Normal Mode</span>
+                <button id="normalCopyButton" class="copy-button" title="Copy to clipboard">
                     <span>Copy</span>
                 </button>
             </div>
-            <pre><code id="output" class="language-html"></code></pre>
+            <pre><code id="normalOutput" class="language-html"></code></pre>
+        </div>
+
+        <!-- Agent Mode Output Container -->
+        <div class="output-container agent-output-container" id="agentModeOutput" style="display: none;">
+            <div class="output-header">
+                <span class="output-title">🤖 Agent Mode Results</span>
+                <button id="agentCopyButton" class="copy-button" title="Copy to clipboard">
+                    <span>Copy</span>
+                </button>
+            </div>
+            <pre><code id="agentOutput" class="language-html"></code></pre>
         </div>
     </div>
 
