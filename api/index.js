@@ -17,9 +17,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production'
-        ? [process.env.VERCEL_URL, process.env.PRODUCTION_URL].filter(Boolean)
-        : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true
 }));
 
