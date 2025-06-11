@@ -1,12 +1,6 @@
 const API_KEY = "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"; // Replace with your actual API key
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Configuration helper
-function getApiUrl(endpoint) {
-    const config = window.getConfig ? window.getConfig() : { API_BASE_URL: '' };
-    return config.API_BASE_URL + endpoint;
-}
-
 // Global variables
 let isAgentMode = false;
 let userHasScrolled = false;
@@ -69,7 +63,7 @@ async function handleAgentMode(prompt, output, generateButton, copyButton, copyB
         }
 
         // Send request to agent mode endpoint
-        const response = await fetch(getApiUrl('/api/agent'), {
+        const response = await fetch('/api/agent', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1309,7 +1303,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setButtonLoading(submitBtn, true);
 
             try {
-                const response = await fetch(getApiUrl('/api/login'), {
+                const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1396,7 +1390,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setButtonLoading(submitBtn, true);
 
             try {
-                const response = await fetch(getApiUrl('/api/register'), {
+                const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1453,7 +1447,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const idToken = await user.getIdToken();
 
                 // Send token to backend for verification
-                const response = await fetch(getApiUrl('/api/auth/google'), {
+                const response = await fetch('/api/auth/google', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1718,7 +1712,7 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
 
         try {
-            const response = await fetch(getApiUrl('/api/logout'), {
+            const response = await fetch('/api/logout', {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -1745,7 +1739,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check if user is already logged in on page load
     async function checkAuthStatus() {
         try {
-            const response = await fetch(getApiUrl('/api/user'), {
+            const response = await fetch('/api/user', {
                 credentials: 'include'
             });
 

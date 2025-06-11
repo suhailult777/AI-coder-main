@@ -24,14 +24,15 @@ console.log('USE_DATABASE:', process.env.USE_DATABASE);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware - Updated CORS for Netlify/Render deployment
-const allowedOrigins = process.env.NODE_ENV === 'production' 
+// Middleware - Updated CORS for Docker deployment
+const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [
-      process.env.FRONTEND_URL,
-      'https://ai-coder-frontend.netlify.app',
-      'https://your-netlify-app.netlify.app'
-    ].filter(Boolean)
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    process.env.FRONTEND_URL,
+    process.env.CORS_ORIGIN,
+    'https://ai-coder-frontend.netlify.app',
+    'https://your-netlify-app.netlify.app'
+  ].filter(Boolean)
+  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080'];
 
 console.log('🌐 CORS Configuration:');
 console.log('Environment:', process.env.NODE_ENV || 'development');
@@ -41,9 +42,9 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     console.log('🔍 Origin check:', origin);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       console.log('✅ Origin allowed:', origin);
       callback(null, true);
