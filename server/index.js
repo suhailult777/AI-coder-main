@@ -6,6 +6,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,8 +92,8 @@ async function initializeServer() {
 
         console.log(`🤖 Agent mode request from user ${req.session.user.email}:`, prompt);
 
-        // Path to the my-cursor agent project
-        const agentPath = path.join(__dirname, '..', '..', 'my-cursor - agent mode');
+        // Path to the integrated agent project
+        const agentPath = path.join(__dirname, '..', 'agent');
 
         // Check if the agent directory exists
         try {
@@ -184,6 +185,9 @@ async function initializeServer() {
       }
     });
 
+    // SSE clients management
+    const sseClients = new Set();
+
     // Agent status endpoint - requires authentication
     app.get('/api/agent/status', (req, res) => {
       try {
@@ -195,11 +199,10 @@ async function initializeServer() {
           });
         }
 
-        const agentPath = path.join(__dirname, '..', '..', 'my-cursor - agent mode');
+        const agentPath = path.join(__dirname, '..', 'agent');
         const statusFilePath = path.join(agentPath, 'agent-status.json');
 
         // Check if status file exists
-        const fs = require('fs');
         if (fs.existsSync(statusFilePath)) {
           const statusData = JSON.parse(fs.readFileSync(statusFilePath, 'utf8'));
           res.json(statusData);
@@ -216,6 +219,155 @@ async function initializeServer() {
           message: `Failed to read status: ${error.message}`,
           timestamp: new Date().toISOString()
         });
+      }
+    });
+
+    // SSE endpoint for real-time agent status streaming
+    app.get('/api/agent/status/stream', (req, res) => {
+      // Check if user is authenticated
+      if (!req.session.userId) {
+        return res.status(401).json({
+          error: 'Authentication required',
+          message: 'Please sign in to access Agent Mode status stream'
+        });
+      }
+
+      // Set up SSE headers
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control'
+      });
+
+      // Send initial connection message
+      res.write('data: {"type": "connected", "message": "SSE connection established"}\n\n');
+
+      // Add client to the set
+      const clientId = Date.now() + Math.random();
+      const client = { id: clientId, res, userId: req.session.userId };
+      sseClients.add(client);
+
+      console.log(`📡 SSE client connected: ${clientId} (${sseClients.size} total clients)`);
+
+      // Send current status immediately if available
+      try {
+        const agentPath = path.join(__dirname, '..', 'agent');
+        const statusFilePath = path.join(agentPath, 'agent-status.json');
+
+        if (fs.existsSync(statusFilePath)) {
+          const statusData = JSON.parse(fs.readFileSync(statusFilePath, 'utf8'));
+          res.write(`data: ${JSON.stringify({ type: 'status', ...statusData })}\n\n`);
+        }
+      } catch (error) {
+        console.error('Error sending initial status:', error);
+      }
+
+      // Handle client disconnect
+      req.on('close', () => {
+        sseClients.delete(client);
+        console.log(`📡 SSE client disconnected: ${clientId} (${sseClients.size} total clients)`);
+      });
+
+      req.on('error', (error) => {
+        console.error(`📡 SSE client error: ${clientId}`, error);
+        sseClients.delete(client);
+      });
+    });
+
+    // Function to broadcast status updates to all SSE clients
+    function broadcastAgentStatus(statusData) {
+      const message = `data: ${JSON.stringify({ type: 'status', ...statusData })}\n\n`;
+
+      // Remove disconnected clients
+      const deadClients = [];
+
+      sseClients.forEach(client => {
+        try {
+          client.res.write(message);
+        } catch (error) {
+          console.error(`📡 Error sending to SSE client ${client.id}:`, error.message);
+          deadClients.push(client);
+        }
+      });
+
+      // Clean up dead connections
+      deadClients.forEach(client => sseClients.delete(client));
+
+      if (sseClients.size > 0) {
+        console.log(`📡 Broadcasted status to ${sseClients.size} SSE clients`);
+      }
+    }
+
+    // Watch for agent status file changes using fs.watch
+    const agentPath = path.join(__dirname, '..', 'agent');
+    const statusFilePath = path.join(agentPath, 'agent-status.json');
+
+    // Create agent directory if it doesn't exist
+    if (!fs.existsSync(agentPath)) {
+      fs.mkdirSync(agentPath, { recursive: true });
+    }
+
+    // Watch for changes to the status file
+    let fsWatcher = null;
+    try {
+      fsWatcher = fs.watch(statusFilePath, (eventType, filename) => {
+        if (eventType === 'change') {
+          try {
+            const statusData = JSON.parse(fs.readFileSync(statusFilePath, 'utf8'));
+            broadcastAgentStatus(statusData);
+          } catch (error) {
+            console.error('Error reading/broadcasting status file:', error);
+          }
+        }
+      });
+      console.log('📁 Watching agent status file for changes...');
+    } catch (error) {
+      console.log('📁 Status file does not exist yet, will start watching when created');
+    }
+
+    // Cleanup on server shutdown
+    process.on('SIGINT', () => {
+      if (fsWatcher) {
+        fsWatcher.close();
+      }
+      sseClients.forEach(client => {
+        try {
+          client.res.end();
+        } catch (error) {
+          // Ignore errors when closing
+        }
+      });
+      sseClients.clear();
+      process.exit(0);
+    });
+
+    // Status simulation endpoint for testing (development only)
+    app.post('/api/simulate-status', (req, res) => {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ error: 'Not available in production' });
+      }
+
+      try {
+        const statusData = req.body;
+        const agentPath = path.join(__dirname, '..', 'agent');
+        const statusFilePath = path.join(agentPath, 'agent-status.json');
+
+        // Create agent directory if it doesn't exist
+        if (!fs.existsSync(agentPath)) {
+          fs.mkdirSync(agentPath, { recursive: true });
+        }
+
+        // Write the simulated status
+        fs.writeFileSync(statusFilePath, JSON.stringify(statusData, null, 2));
+
+        console.log(`🧪 Simulated status: ${statusData.status} - ${statusData.message}`);
+
+        res.json({ success: true, message: 'Status simulated successfully' });
+      } catch (error) {
+        console.error('Status simulation error:', error);
+        res.status(500).json({ error: 'Failed to simulate status' });
       }
     });
 

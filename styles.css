@@ -1848,3 +1848,216 @@ body.light-theme .auth-required-btn:active {
     padding: 5px 10px;
   }
 }
+
+/* Agent Stream Interface - Simple terminal-like output */
+.agent-stream {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: "JetBrains Mono", "Monaco", "Consolas", monospace;
+  margin-top: 20px;
+}
+
+.stream-header {
+  background: #161b22;
+  padding: 12px 16px;
+  border-bottom: 1px solid #30363d;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.stream-title {
+  color: #f0f6fc;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #238636;
+  display: inline-block;
+  animation: pulse-green 2s infinite;
+}
+
+.connection-indicator.disconnected {
+  background: #da3633;
+  animation: pulse-red 2s infinite;
+}
+
+.connection-indicator.connecting {
+  background: #fb8500;
+  animation: pulse-orange 1s infinite;
+}
+
+@keyframes pulse-green {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-red {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-orange {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.stream-status {
+  background: #238636;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.stream-status.status-starting {
+  background: #1f6feb;
+}
+
+.stream-status.status-processing {
+  background: #fb8500;
+}
+
+.stream-status.status-thinking {
+  background: #9a6dff;
+}
+
+.stream-status.status-executing {
+  background: #da3633;
+}
+
+.stream-status.status-finalizing {
+  background: #2ea043;
+}
+
+.stream-status.status-opening_vscode {
+  background: #2ea043;
+}
+
+.stream-status.status-completed {
+  background: #238636;
+}
+
+.stream-status.status-error {
+  background: #da3633;
+}
+
+.stream-content {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: #0d1117;
+}
+
+.stream-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: #e6edf3;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.stream-line.current-line {
+  color: #58a6ff;
+}
+
+.stream-line.success-line {
+  color: #3fb950;
+}
+
+.stream-timestamp {
+  color: #7d8590;
+  font-size: 11px;
+  min-width: 65px;
+  font-family: monospace;
+}
+
+.stream-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.cursor {
+  color: #58a6ff;
+  animation: blink 1s infinite;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Scrollbar styling for stream content */
+.stream-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.stream-content::-webkit-scrollbar-track {
+  background: #161b22;
+}
+
+.stream-content::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 3px;
+}
+
+.stream-content::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+.stream-status.status-tool_completed {
+  background: #2ea043;
+}
+
+.stream-line.tool-line {
+  border-left: 2px solid #58a6ff;
+  padding-left: 10px;
+  background: rgba(88, 166, 255, 0.05);
+}
+
+.stream-line.tool-line .stream-text {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}

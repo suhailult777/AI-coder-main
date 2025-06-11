@@ -16,6 +16,9 @@ function setPrompt(text) {
 
 // Handle agent mode functionality
 async function handleAgentMode(prompt, output, generateButton, copyButton, copyButtonSpan) {
+    // Set agent mode flag
+    isAgentMode = true;
+
     // --- Start: Feedback on button click ---
     if (generateButton) {
         generateButton.disabled = true;
@@ -109,26 +112,36 @@ async function handleAgentMode(prompt, output, generateButton, copyButton, copyB
             throw new Error(data.error || 'Agent mode activation failed');
         }
 
-        // Show success message
+        // Show simple agent stream interface
         output.innerHTML = `
-            <div class="agent-success">
-                <h3>🚀 Agent Mode Activated!</h3>
-                <p><strong>Your Query:</strong> ${prompt}</p>
-                <p id="agent-status-message">🤖 AI Agent is now processing your request</p>
-                <p id="agent-vscode-message">💡 VSCode will automatically open the created project when ready</p>
-                <div class="agent-status">
-                    <span class="status-indicator" id="status-indicator">●</span>
-                    <span id="status-text">Status: ${data.status}</span>
+            <div class="agent-stream">
+                <div class="stream-header">
+                    <span class="stream-title">
+                        🤖 AI Agent Working
+                        <span class="connection-indicator connecting" id="connection-indicator" title="Connection Status"></span>
+                    </span>
+                    <span class="stream-status">ACTIVE</span>
                 </div>
-                <div class="agent-info">
-                    <small>Agent Working Directory: ${data.agentPath}</small><br>
-                    <small>Started: ${new Date(data.timestamp).toLocaleTimeString()}</small>
+                <div class="stream-content" id="stream-content">
+                    <div class="stream-line">
+                        <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                        <span class="stream-text">🚀 Agent activated: "${prompt}"</span>
+                    </div>
+                    <div class="stream-line">
+                        <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                        <span class="stream-text">📁 Working in: ${data.agentPath}</span>
+                    </div>
+                    <div class="stream-line current-line" id="current-line">
+                        <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                        <span class="stream-text">🔄 ${data.message}</span>
+                        <span class="cursor">●</span>
+                    </div>
                 </div>
             </div>
         `;
 
-        // Start polling for status updates
-        startAgentStatusPolling();
+        // Start SSE streaming for real-time status updates
+        startAgentStatusStreaming();
 
     } catch (error) {
         console.error('Agent mode error:', error);
@@ -144,82 +157,278 @@ async function handleAgentMode(prompt, output, generateButton, copyButton, copyB
     }
 }
 
-// Function to poll for agent status updates
-let statusPollingInterval = null;
+// Function to start SSE connection for real-time agent status updates
+let agentEventSource = null;
 
-function startAgentStatusPolling() {
-    // Clear any existing polling
-    if (statusPollingInterval) {
-        clearInterval(statusPollingInterval);
+function updateConnectionIndicator(status) {
+    const indicator = document.getElementById('connection-indicator');
+    if (indicator) {
+        indicator.className = 'connection-indicator ' + status;
+        switch (status) {
+            case 'connected':
+                indicator.title = 'Connected - Real-time updates active';
+                break;
+            case 'connecting':
+                indicator.title = 'Connecting to server...';
+                break;
+            case 'disconnected':
+                indicator.title = 'Disconnected - Attempting to reconnect...';
+                break;
+        }
+    }
+}
+
+function startAgentStatusStreaming() {
+    // Close any existing connection
+    if (agentEventSource) {
+        agentEventSource.close();
+        agentEventSource = null;
     }
 
-    let completedStatuses = ['completed', 'error'];
+    console.log('🔌 Starting SSE connection for agent status...');
+    updateConnectionIndicator('connecting');
 
-    statusPollingInterval = setInterval(async () => {
+    // Create new EventSource connection
+    agentEventSource = new EventSource('/api/agent/status/stream');
+
+    agentEventSource.onopen = function (event) {
+        console.log('🔌 SSE connection opened');
+        updateConnectionIndicator('connected');
+    };
+
+    agentEventSource.onmessage = function (event) {
         try {
-            const response = await fetch('/api/agent/status', {
-                credentials: 'include'
-            });
+            const data = JSON.parse(event.data);
 
-            if (response.ok) {
-                const statusData = await response.json();
+            if (data.type === 'connected') {
+                console.log('🔌 SSE connected:', data.message);
+                updateConnectionIndicator('connected');
+            } else if (data.type === 'status') {
+                // Remove type field and pass the status data
+                const { type, ...statusData } = data;
                 updateAgentStatusDisplay(statusData);
 
-                // Stop polling if agent is completed or errored
-                if (completedStatuses.includes(statusData.status)) {
-                    clearInterval(statusPollingInterval);
-                    statusPollingInterval = null;
-                }
-            } else if (response.status === 401) {
-                // Authentication error - stop polling and show auth message
-                clearInterval(statusPollingInterval);
-                statusPollingInterval = null;
+                // Stop streaming if agent is completed or errored
+                if (['completed', 'error'].includes(statusData.status)) {
+                    console.log('🔌 Agent completed, closing SSE connection');
+                    agentEventSource.close();
+                    agentEventSource = null;
+                    updateConnectionIndicator('disconnected');
 
-                const statusMessage = document.getElementById('agent-status-message');
-                if (statusMessage) {
-                    statusMessage.innerHTML = '🔒 Authentication required to check status';
+                    // Reset agent mode flag after completion
+                    setTimeout(() => {
+                        isAgentMode = false;
+                    }, 2000);
                 }
-
-                // Update user state
-                window.currentUser = null;
-                updateUIForLoggedOutUser();
             }
         } catch (error) {
-            console.error('Error fetching agent status:', error);
+            console.error('Error parsing SSE message:', error);
         }
-    }, 2000); // Poll every 2 seconds
+    }; agentEventSource.onerror = function (event) {
+        console.error('🔌 SSE connection error:', event);
+        updateConnectionIndicator('disconnected');
+
+        // Check if the connection is closed
+        if (agentEventSource.readyState === EventSource.CLOSED) {
+            console.log('🔌 SSE connection closed');
+            agentEventSource = null;
+
+            // Try to reconnect after a delay, but only if we're still in agent mode
+            const streamContent = document.getElementById('stream-content');
+            if (streamContent && isAgentMode) {
+                setTimeout(() => {
+                    if (!agentEventSource && isAgentMode) {
+                        console.log('🔌 Attempting to reconnect SSE...');
+                        startAgentStatusStreaming();
+                    }
+                }, 5000);
+            }
+        } else if (agentEventSource.readyState === EventSource.CONNECTING) {
+            updateConnectionIndicator('connecting');
+        }
+    };
+}
+
+function stopAgentStatusStreaming() {
+    if (agentEventSource) {
+        console.log('🔌 Closing SSE connection...');
+        agentEventSource.close();
+        agentEventSource = null;
+        updateConnectionIndicator('disconnected');
+    }
 }
 
 function updateAgentStatusDisplay(statusData) {
-    const statusMessage = document.getElementById('agent-status-message');
-    const vscodeMessage = document.getElementById('agent-vscode-message');
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
+    const streamContent = document.getElementById('stream-content');
+    const currentLine = document.getElementById('current-line');
+    const streamStatus = document.querySelector('.stream-status');
 
-    if (statusMessage) {
-        statusMessage.textContent = `🤖 ${statusData.message}`;
+    if (!streamContent) return;
+
+    // Update the current line to show new status
+    if (currentLine) {
+        const currentText = currentLine.querySelector('.stream-text');
+        const cursor = currentLine.querySelector('.cursor');
+
+        if (currentText) {
+            // Update current line text based on status
+            let statusIcon = '🔄';
+            let displayMessage = statusData.message;
+
+            switch (statusData.status) {
+                case 'starting':
+                    statusIcon = '🚀';
+                    break;
+                case 'processing':
+                    statusIcon = '🔍';
+                    break;
+                case 'thinking':
+                    statusIcon = '🧠';
+                    break;
+                case 'executing':
+                    statusIcon = '⚡';
+                    // Show tool call details
+                    if (statusData.toolCall) {
+                        displayMessage = `Executing tool: ${statusData.toolCall.tool}("${statusData.toolCall.input}")`;
+                    }
+                    break;
+                case 'tool_completed':
+                    statusIcon = '✅';
+                    // Show tool completion with result preview
+                    if (statusData.toolCall && statusData.toolResult) {
+                        displayMessage = `Tool completed: ${statusData.toolCall.tool} → ${statusData.toolResult}`;
+                    }
+                    break;
+                case 'finalizing':
+                    statusIcon = '🎯';
+                    break;
+                case 'opening_vscode':
+                    statusIcon = '🎯';
+                    break;
+                case 'completed':
+                    statusIcon = '🎉';
+                    break;
+                case 'error':
+                    statusIcon = '❌';
+                    break;
+                default:
+                    statusIcon = '🔄';
+                    break;
+            }
+
+            currentText.textContent = `${statusIcon} ${displayMessage}`;
+        }
+
+        // Update status indicator
+        if (streamStatus) {
+            streamStatus.textContent = statusData.status.replace('_', ' ').toUpperCase();
+            streamStatus.className = `stream-status status-${statusData.status}`;
+        }
+
+        // If status changed significantly, add a new line and create a new current line
+        const previousStatus = currentLine.dataset.lastStatus;
+        const significantStatusChange = previousStatus && previousStatus !== statusData.status &&
+            !['thinking', 'processing'].includes(statusData.status);
+
+        if (significantStatusChange) {
+            // Remove current line class and cursor from old line
+            currentLine.classList.remove('current-line');
+            if (cursor) cursor.remove();
+            currentLine.removeAttribute('id');
+
+            // Add special styling for tool calls
+            if (previousStatus === 'executing' || previousStatus === 'tool_completed') {
+                currentLine.classList.add('tool-line');
+            }
+
+            // Add new line for the new status
+            const newLine = document.createElement('div');
+            newLine.className = 'stream-line current-line';
+            newLine.id = 'current-line';
+
+            let newStatusIcon = '🔄';
+            let newDisplayMessage = statusData.message;
+
+            // Handle new status
+            switch (statusData.status) {
+                case 'executing':
+                    newStatusIcon = '⚡';
+                    if (statusData.toolCall) {
+                        newDisplayMessage = `Executing tool: ${statusData.toolCall.tool}("${statusData.toolCall.input}")`;
+                    }
+                    break;
+                case 'tool_completed':
+                    newStatusIcon = '✅';
+                    if (statusData.toolCall && statusData.toolResult) {
+                        newDisplayMessage = `Tool completed: ${statusData.toolCall.tool} → ${statusData.toolResult}`;
+                    }
+                    break;
+                case 'thinking':
+                    newStatusIcon = '🧠';
+                    break;
+                case 'finalizing':
+                    newStatusIcon = '🎯';
+                    break;
+                case 'opening_vscode':
+                    newStatusIcon = '🎯';
+                    break;
+                case 'completed':
+                    newStatusIcon = '🎉';
+                    break;
+                default:
+                    newStatusIcon = '🔄';
+                    break;
+            }
+
+            newLine.innerHTML = `
+                <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                <span class="stream-text">${newStatusIcon} ${newDisplayMessage}</span>
+                <span class="cursor">●</span>
+            `;
+            streamContent.appendChild(newLine);
+
+            // Auto-scroll to bottom
+            streamContent.scrollTop = streamContent.scrollHeight;
+        }
+
+        // Store current status for comparison
+        currentLine.dataset.lastStatus = statusData.status;
     }
 
-    if (statusText) {
-        statusText.textContent = `Status: ${statusData.status}`;
-    }
+    // Handle completion
+    if (statusData.status === 'completed') {
+        if (streamStatus) {
+            streamStatus.textContent = 'COMPLETED';
+            streamStatus.className = 'stream-status status-completed';
+        }
 
-    if (statusIndicator) {
-        // Update indicator class and color based on status
-        statusIndicator.className = `status-indicator status-${statusData.status}`;
+        // Add final success message
+        setTimeout(() => {
+            const completionLine = document.createElement('div');
+            completionLine.className = 'stream-line success-line';
+            completionLine.innerHTML = `
+                <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                <span class="stream-text">🎉 SUCCESS! Code generation completed and VSCode opened!</span>
+            `;
+            streamContent.appendChild(completionLine);
 
-        // Handle specific status updates
-        switch (statusData.status) {
-            case 'completed':
-                if (vscodeMessage && statusData.projectName) {
-                    vscodeMessage.innerHTML = `✅ Project "${statusData.projectName}" opened in VSCode!`;
-                }
-                break;
-            case 'error':
-                if (vscodeMessage) {
-                    vscodeMessage.innerHTML = `❌ ${statusData.message}`;
-                }
-                break;
+            // Add project info if available
+            if (statusData.projectName) {
+                const projectLine = document.createElement('div');
+                projectLine.className = 'stream-line success-line';
+                projectLine.innerHTML = `
+                    <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                    <span class="stream-text">📁 Project: "${statusData.projectName}" ready for development!</span>
+                `;
+                streamContent.appendChild(projectLine);
+            }
+
+            streamContent.scrollTop = streamContent.scrollHeight;
+        }, 1000);
+    } else if (statusData.status === 'error') {
+        if (streamStatus) {
+            streamStatus.textContent = 'ERROR';
+            streamStatus.className = 'stream-status status-error';
         }
     }
 }
@@ -512,6 +721,23 @@ async function generateCode() {
 document.addEventListener('DOMContentLoaded', function () {
     // Test console log to ensure script is loading
     console.log('Script loaded successfully!');
+
+    // Add beforeunload event to cleanup SSE connections
+    window.addEventListener('beforeunload', function () {
+        stopAgentStatusStreaming();
+    });
+
+    // Add page visibility change handler to manage SSE connections
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            // Page is hidden, keep connection but don't reconnect if it fails
+        } else {
+            // Page is visible, ensure connection is active if needed
+            if (!agentEventSource && isAgentMode) {
+                startAgentStatusStreaming();
+            }
+        }
+    });
     console.log('Current time:', new Date());
 
     // Initialize syntax highlighting if needed (assuming hljs is loaded)

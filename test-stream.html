@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Agent Stream</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="agent-mode">
+    <div class="container">
+        <h1>Agent Stream Test</h1>
+        <div class="output-container">
+            <div id="stream-test">
+                <!-- Stream will be inserted here -->
+            </div>
+        </div>
+
+        <button onclick="testStream()">Test Stream Interface</button>
+        <button onclick="simulateAgent()">Simulate Agent Activity</button>
+    </div>
+
+    <script>
+        function testStream() {
+            const container = document.getElementById('stream-test');
+            container.innerHTML = `
+                <div class="agent-stream">
+                    <div class="stream-header">
+                        <span class="stream-title">🤖 AI Agent Working</span>
+                        <span class="stream-status status-starting">STARTING</span>
+                    </div>
+                    <div class="stream-content" id="stream-content">
+                        <div class="stream-line">
+                            <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                            <span class="stream-text">🚀 Agent activated: "Create a todo app"</span>
+                        </div>
+                        <div class="stream-line">
+                            <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                            <span class="stream-text">📁 Working in: c:\\AI-coder-main\\agent</span>
+                        </div>
+                        <div class="stream-line current-line" id="current-line">
+                            <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                            <span class="stream-text">🔄 Initializing AI Agent...</span>
+                            <span class="cursor">●</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } function simulateAgent() {
+            const steps = [
+                { status: 'starting', message: 'Initializing AI Agent...', icon: '🚀' },
+                { status: 'processing', message: 'Processing request: "Create a todo app"', icon: '🔍' },
+                { status: 'thinking', message: 'AI is thinking: I need to create HTML, CSS and JS files', icon: '🧠' },
+                { status: 'executing', message: 'Executing tool: executeCommand("mkdir todo-app")', icon: '⚡', toolCall: { tool: 'executeCommand', input: 'mkdir todo-app' } },
+                { status: 'tool_completed', message: 'Tool completed: executeCommand → Directory created successfully', icon: '✅', toolCall: { tool: 'executeCommand', input: 'mkdir todo-app' }, toolResult: 'Directory \'todo-app\' created successfully' },
+                { status: 'thinking', message: 'AI is thinking: Now I need to create the HTML structure', icon: '🧠' },
+                { status: 'executing', message: 'Executing tool: executeCommand("echo HTML > todo-app/index.html")', icon: '⚡', toolCall: { tool: 'executeCommand', input: 'echo HTML > todo-app/index.html' } },
+                { status: 'tool_completed', message: 'Tool completed: executeCommand → File created successfully', icon: '✅', toolCall: { tool: 'executeCommand', input: 'echo HTML > todo-app/index.html' }, toolResult: 'File created: todo-app/index.html' },
+                { status: 'executing', message: 'Executing tool: executeCommand("echo CSS > todo-app/style.css")', icon: '⚡', toolCall: { tool: 'executeCommand', input: 'echo CSS > todo-app/style.css' } },
+                { status: 'tool_completed', message: 'Tool completed: executeCommand → CSS file created', icon: '✅', toolCall: { tool: 'executeCommand', input: 'echo CSS > todo-app/style.css' }, toolResult: 'CSS file created successfully' },
+                { status: 'finalizing', message: 'Task completed! Opening project in VSCode...', icon: '🎯' },
+                { status: 'opening_vscode', message: 'Opening project "todo-app" in VSCode...', icon: '🎯' },
+                { status: 'completed', message: 'Project successfully opened in VSCode!', icon: '🎉', projectName: 'todo-app' }
+            ];
+
+            let currentStep = 0;
+
+            function updateStep() {
+                if (currentStep >= steps.length) return;
+
+                const step = steps[currentStep];
+                const streamContent = document.getElementById('stream-content');
+                const currentLine = document.getElementById('current-line');
+                const streamStatus = document.querySelector('.stream-status');
+
+                if (currentLine && streamContent) {
+                    // Update current line
+                    const currentText = currentLine.querySelector('.stream-text');
+                    if (currentText) {
+                        let displayMessage = step.message;
+
+                        // Enhanced display for tool calls
+                        if (step.status === 'executing' && step.toolCall) {
+                            displayMessage = `Executing tool: ${step.toolCall.tool}("${step.toolCall.input}")`;
+                        } else if (step.status === 'tool_completed' && step.toolCall && step.toolResult) {
+                            displayMessage = `Tool completed: ${step.toolCall.tool} → ${step.toolResult}`;
+                        }
+
+                        currentText.textContent = `${step.icon} ${displayMessage}`;
+                    }
+
+                    // Update status
+                    if (streamStatus) {
+                        streamStatus.textContent = step.status.replace('_', ' ').toUpperCase();
+                        streamStatus.className = `stream-status status-${step.status}`;
+                    }
+
+                    // If not the last step, create a new line for next step
+                    if (currentStep < steps.length - 1) {
+                        setTimeout(() => {
+                            // Remove current line class from old line
+                            currentLine.classList.remove('current-line');
+                            const cursor = currentLine.querySelector('.cursor');
+                            if (cursor) cursor.remove();
+                            currentLine.removeAttribute('id');
+
+                            // Add special styling for tool lines
+                            if (step.status === 'executing' || step.status === 'tool_completed') {
+                                currentLine.classList.add('tool-line');
+                            }
+
+                            // Add new current line
+                            const newLine = document.createElement('div');
+                            newLine.className = 'stream-line current-line';
+                            newLine.id = 'current-line';
+                            newLine.innerHTML = `
+                                <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                                <span class="stream-text">🔄 Loading...</span>
+                                <span class="cursor">●</span>
+                            `;
+                            streamContent.appendChild(newLine);
+
+                            // Auto-scroll to bottom
+                            streamContent.scrollTop = streamContent.scrollHeight;
+
+                            currentStep++;
+                            setTimeout(updateStep, 1500);
+                        }, 2000);
+                    } else {
+                        // Final step - add success messages
+                        setTimeout(() => {
+                            const completionLine = document.createElement('div');
+                            completionLine.className = 'stream-line success-line';
+                            completionLine.innerHTML = `
+                                <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                                <span class="stream-text">🎉 SUCCESS! Code generation completed and VSCode opened!</span>
+                            `;
+                            streamContent.appendChild(completionLine);
+
+                            // Add project info
+                            if (step.projectName) {
+                                const projectLine = document.createElement('div');
+                                projectLine.className = 'stream-line success-line';
+                                projectLine.innerHTML = `
+                                    <span class="stream-timestamp">${new Date().toLocaleTimeString()}</span>
+                                    <span class="stream-text">📁 Project: "${step.projectName}" ready for development!</span>
+                                `;
+                                streamContent.appendChild(projectLine);
+                            }
+
+                            streamContent.scrollTop = streamContent.scrollHeight;
+                        }, 1000);
+                    }
+                }
+            }
+
+            // Start the simulation
+            testStream();
+            setTimeout(updateStep, 1000);
+        }
+    </script>
+</body>
+
+</html>

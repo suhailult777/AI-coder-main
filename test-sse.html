@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Agent Status Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117;
+            color: #f0f6fc;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .test-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .connection-status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .status-connected {
+            background: #238636;
+            color: white;
+        }
+
+        .status-connecting {
+            background: #fb8500;
+            color: white;
+        }
+
+        .status-disconnected {
+            background: #da3633;
+            color: white;
+        }
+
+        .status-error {
+            background: #da3633;
+            color: white;
+        }
+
+        .log-container {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .log-timestamp {
+            color: #7d8590;
+            min-width: 100px;
+        }
+
+        .log-message {
+            color: #e6edf3;
+        }
+
+        .log-error {
+            color: #ff7b72;
+        }
+
+        .log-success {
+            color: #3fb950;
+        }
+
+        .log-info {
+            color: #58a6ff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #2ea043;
+        }
+
+        button:disabled {
+            background: #484f58;
+            cursor: not-allowed;
+        }
+
+        .status-simulator {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .simulate-btn {
+            background: #6f42c1;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .simulate-btn:hover {
+            background: #8a63d2;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔌 SSE Agent Status Test</h1>
+
+        <div class="test-section">
+            <h2>Connection Status</h2>
+            <div id="connectionStatus" class="connection-status status-disconnected">
+                Disconnected - Ready to connect
+            </div>
+
+            <div class="controls">
+                <button id="connectBtn">Connect SSE</button>
+                <button id="disconnectBtn" disabled>Disconnect SSE</button>
+                <button id="clearLogBtn">Clear Log</button>
+                <button id="testAuthBtn">Test Auth Status</button>
+            </div>
+        </div>
+
+        <div class="status-simulator">
+            <h2>🧪 Status Simulator</h2>
+            <p>Simulate different agent status updates by writing to the status file:</p>
+            <button class="simulate-btn"
+                onclick="simulateStatus('starting', 'Agent is starting up...')">Starting</button>
+            <button class="simulate-btn"
+                onclick="simulateStatus('thinking', 'AI is thinking about the problem...')">Thinking</button>
+            <button class="simulate-btn"
+                onclick="simulateStatus('executing', 'Executing command: npm create react-app', {tool: 'executeCommand', input: 'npm create react-app my-app'})">Executing</button>
+            <button class="simulate-btn"
+                onclick="simulateStatus('tool_completed', 'Command completed successfully', {tool: 'executeCommand', input: 'npm create react-app my-app'}, 'Project created successfully!')">Tool
+                Completed</button>
+            <button class="simulate-btn"
+                onclick="simulateStatus('completed', 'Project completed successfully!')">Completed</button>
+            <button class="simulate-btn"
+                onclick="simulateStatus('error', 'An error occurred during execution')">Error</button>
+        </div>
+
+        <div class="test-section">
+            <h2>Event Log</h2>
+            <div id="logContainer" class="log-container">
+                <div class="log-entry">
+                    <span class="log-timestamp">[Ready]</span>
+                    <span class="log-message log-info">SSE test page loaded. Click "Connect SSE" to start
+                        testing.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let logContainer = document.getElementById('logContainer');
+        let connectionStatus = document.getElementById('connectionStatus');
+        let connectBtn = document.getElementById('connectBtn');
+        let disconnectBtn = document.getElementById('disconnectBtn');
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'log-timestamp';
+            timestampSpan.textContent = `[${timestamp}]`;
+
+            const messageSpan = document.createElement('span');
+            messageSpan.className = `log-message log-${type}`;
+            messageSpan.textContent = message;
+
+            logEntry.appendChild(timestampSpan);
+            logEntry.appendChild(messageSpan);
+            logContainer.appendChild(logEntry);
+
+            // Auto-scroll to bottom
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateConnectionStatus(status, message) {
+            connectionStatus.className = `connection-status status-${status}`;
+            connectionStatus.textContent = message;
+        }
+
+        function connectSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            addLog('🔌 Attempting to connect to SSE endpoint...', 'info');
+            updateConnectionStatus('connecting', 'Connecting to server...');
+
+            eventSource = new EventSource('/api/agent/status/stream');
+
+            eventSource.onopen = function (event) {
+                addLog('✅ SSE connection opened successfully', 'success');
+                updateConnectionStatus('connected', 'Connected - Real-time updates active');
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            };
+
+            eventSource.onmessage = function (event) {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'connected') {
+                        addLog(`📡 ${data.message}`, 'success');
+                    } else if (data.type === 'status') {
+                        const statusInfo = `Status: ${data.status} | Message: ${data.message}`;
+                        addLog(`📊 ${statusInfo}`, 'info');
+
+                        if (data.toolCall) {
+                            addLog(`🔧 Tool: ${data.toolCall.tool}("${data.toolCall.input}")`, 'info');
+                        }
+
+                        if (data.toolResult) {
+                            addLog(`📋 Result: ${data.toolResult.substring(0, 100)}${data.toolResult.length > 100 ? '...' : ''}`, 'info');
+                        }
+                    } else {
+                        addLog(`📨 Unknown message type: ${JSON.stringify(data)}`, 'info');
+                    }
+                } catch (error) {
+                    addLog(`❌ Failed to parse SSE message: ${error.message}`, 'error');
+                    addLog(`Raw data: ${event.data}`, 'error');
+                }
+            };
+
+            eventSource.onerror = function (event) {
+                addLog('❌ SSE connection error occurred', 'error');
+
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    addLog('🔌 SSE connection closed', 'error');
+                    updateConnectionStatus('disconnected', 'Disconnected - Connection lost');
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    eventSource = null;
+                } else if (eventSource.readyState === EventSource.CONNECTING) {
+                    addLog('🔄 SSE attempting to reconnect...', 'info');
+                    updateConnectionStatus('connecting', 'Reconnecting...');
+                }
+            };
+        }
+
+        function disconnectSSE() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                addLog('🔌 SSE connection closed manually', 'info');
+                updateConnectionStatus('disconnected', 'Disconnected - Ready to connect');
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        async function testAuthStatus() {
+            try {
+                addLog('🔐 Testing authentication status...', 'info');
+                const response = await fetch('/api/user', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    addLog(`✅ Authenticated as: ${user.email}`, 'success');
+                } else {
+                    addLog('❌ Not authenticated - SSE may require authentication', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Auth test failed: ${error.message}`, 'error');
+            }
+        }
+
+        function clearLog() {
+            logContainer.innerHTML = '<div class="log-entry"><span class="log-timestamp">[Cleared]</span><span class="log-message log-info">Log cleared</span></div>';
+        }
+
+        // Simulate status updates for testing
+        async function simulateStatus(status, message, toolCall = null, toolResult = null) {
+            try {
+                const statusData = {
+                    status: status,
+                    message: message,
+                    projectName: status === 'completed' ? 'test-project' : null,
+                    projectPath: status === 'completed' ? '/path/to/test-project' : null,
+                    toolCall: toolCall,
+                    toolResult: toolResult,
+                    timestamp: new Date().toISOString(),
+                    sessionId: 'test-session'
+                };
+
+                const response = await fetch('/api/simulate-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(statusData)
+                });
+
+                if (response.ok) {
+                    addLog(`🧪 Simulated status: ${status}`, 'success');
+                } else {
+                    addLog(`❌ Failed to simulate status: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Simulation error: ${error.message}`, 'error');
+            }
+        }
+
+        // Event listeners
+        connectBtn.addEventListener('click', connectSSE);
+        disconnectBtn.addEventListener('click', disconnectSSE);
+        document.getElementById('clearLogBtn').addEventListener('click', clearLog);
+        document.getElementById('testAuthBtn').addEventListener('click', testAuthStatus);
+
+        // Auto-connect on page load for testing
+        setTimeout(() => {
+            addLog('🚀 Auto-connecting for testing...', 'info');
+            connectSSE();
+        }, 1000);
+    </script>
+</body>
+
+</html>

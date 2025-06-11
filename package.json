@@ -20,7 +20,8 @@
     "uuid": "^9.0.1",
     "dotenv": "^16.3.1",
     "pg": "^8.11.3",
-    "connect-pg-simple": "^9.0.1"
+    "connect-pg-simple": "^9.0.1",
+    "@google/generative-ai": "^0.24.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0"
