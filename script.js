@@ -1,6 +1,12 @@
 const API_KEY = "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"; // Replace with your actual API key
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// Configuration helper
+function getApiUrl(endpoint) {
+    const config = window.getConfig ? window.getConfig() : { API_BASE_URL: '' };
+    return config.API_BASE_URL + endpoint;
+}
+
 // Global variables
 let isAgentMode = false;
 let userHasScrolled = false;
@@ -48,25 +54,8 @@ async function handleAgentMode(prompt, output, generateButton, copyButton, copyB
     `;
 
     try {
-        // Check if user is authenticated for agent mode
-        if (!window.currentUser) {
-            output.innerHTML = `
-                <div class="auth-required-message">
-                    <h3>🔒 Authentication Required</h3>
-                    <p>Agent Mode requires authentication to access premium AI coding features.</p>
-                    <p>Please <strong>sign in</strong> to continue.</p>
-                    <button class="auth-required-btn" onclick="document.getElementById('signInButton').click()">
-                        Sign In to Access Agent Mode
-                    </button>
-                </div>
-            `;
-            if (generateButton) {
-                generateButton.disabled = false;
-                generateButton.textContent = 'Enter';
-                generateButton.classList.remove('generating');
-            }
-            return;
-        }
+        // Authentication removed for serverless compatibility
+        // Agent mode now works without authentication to ensure compatibility with Vercel deployments
 
         // Make sure we have a prompt
         if (!prompt || prompt.trim() === '') {
@@ -80,7 +69,7 @@ async function handleAgentMode(prompt, output, generateButton, copyButton, copyB
         }
 
         // Send request to agent mode endpoint
-        const response = await fetch('/api/agent', {
+        const response = await fetch(getApiUrl('/api/agent'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -92,23 +81,7 @@ async function handleAgentMode(prompt, output, generateButton, copyButton, copyB
         const data = await response.json();
 
         if (!response.ok) {
-            // Handle authentication errors specifically
-            if (response.status === 401) {
-                output.innerHTML = `
-                    <div class="auth-required-message">
-                        <h3>🔒 Authentication Required</h3>
-                        <p>Your session has expired or you are not signed in.</p>
-                        <p>Please <strong>sign in</strong> to access Agent Mode.</p>
-                        <button class="auth-required-btn" onclick="document.getElementById('signInButton').click()">
-                            Sign In to Access Agent Mode
-                        </button>
-                    </div>
-                `;
-                // Clear the user state
-                window.currentUser = null;
-                updateUIForLoggedOutUser();
-                return;
-            }
+            // Authentication errors no longer expected since auth is disabled for serverless compatibility
             throw new Error(data.error || 'Agent mode activation failed');
         }
 
@@ -189,7 +162,7 @@ function startAgentStatusStreaming() {
     updateConnectionIndicator('connecting');
 
     // Create new EventSource connection
-    agentEventSource = new EventSource('/api/agent/status/stream');
+    agentEventSource = new EventSource('/api/agent-stream');
 
     agentEventSource.onopen = function (event) {
         console.log('🔌 SSE connection opened');
@@ -1074,36 +1047,8 @@ document.addEventListener('DOMContentLoaded', function () {
         agentModeToggleButton.addEventListener('click', (e) => {
             e.preventDefault();
 
-            // Check if user is authenticated before allowing agent mode
-            if (!window.currentUser) {
-                // User is not authenticated, show auth modal
-                console.log('Agent mode requires authentication. Opening sign-in modal...');
-
-                // Store the intention to enable agent mode after login
-                localStorage.setItem('pendingAgentMode', 'true');
-
-                // Open auth modal
-                authModal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-
-                // Focus first element when modal opens
-                setTimeout(() => {
-                    const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-                    if (firstFocusable) {
-                        firstFocusable.focus();
-                    }
-                    trapFocus(authModal);
-                }, 150);
-
-                // Show a message indicating why auth is required
-                setTimeout(() => {
-                    showAuthError('Please sign in to access Agent Mode - our premium AI coding assistant.', false);
-                }, 200);
-
-                return;
-            }
-
-            // User is authenticated, proceed with agent mode toggle
+            // Authentication removed for serverless compatibility
+            // Agent mode now works without authentication to ensure compatibility with Vercel deployments
             const isCurrentlyAgentMode = bodyElement.classList.contains('agent-mode');
             setAgentMode(!isCurrentlyAgentMode);
         });
@@ -1364,7 +1309,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setButtonLoading(submitBtn, true);
 
             try {
-                const response = await fetch('/api/login', {
+                const response = await fetch(getApiUrl('/api/login'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1383,18 +1328,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.currentUser = data;
                 updateUIForLoggedInUser(data);
 
-                // Check if user was trying to access agent mode before login
-                const pendingAgentMode = localStorage.getItem('pendingAgentMode');
-                if (pendingAgentMode === 'true') {
-                    localStorage.removeItem('pendingAgentMode');
-                    // Activate agent mode after successful login
-                    setTimeout(() => {
-                        setAgentMode(true);
-                        showAuthError('Welcome to Agent Mode! You now have access to our premium AI coding assistant.', true);
-                    }, 1600);
-                } else {
-                    showAuthError('Login successful! Welcome back.', true);
-                }
+                // Agent mode no longer requires authentication
+                showAuthError('Login successful! Welcome back.', true);
 
                 setTimeout(() => {
                     closeModal();
@@ -1461,7 +1396,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setButtonLoading(submitBtn, true);
 
             try {
-                const response = await fetch('/api/register', {
+                const response = await fetch(getApiUrl('/api/register'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1518,7 +1453,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const idToken = await user.getIdToken();
 
                 // Send token to backend for verification
-                const response = await fetch('/api/auth/google', {
+                const response = await fetch(getApiUrl('/api/auth/google'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1537,18 +1472,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.currentUser = data;
                 updateUIForLoggedInUser(data);
 
-                // Check if user was trying to access agent mode before login
-                const pendingAgentMode = localStorage.getItem('pendingAgentMode');
-                if (pendingAgentMode === 'true') {
-                    localStorage.removeItem('pendingAgentMode');
-                    // Activate agent mode after successful login
-                    setTimeout(() => {
-                        setAgentMode(true);
-                        showAuthError('Welcome to Agent Mode! You now have access to our premium AI coding assistant.', true);
-                    }, 1600);
-                } else {
-                    showAuthError('Google authentication successful! Welcome to AI-SuperProductivity.', true);
-                }
+                // Agent mode no longer requires authentication
+                showAuthError('Google authentication successful! Welcome to AI-SuperProductivity.', true);
 
                 setTimeout(() => {
                     closeModal();
@@ -1793,7 +1718,7 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
 
         try {
-            const response = await fetch('/api/logout', {
+            const response = await fetch(getApiUrl('/api/logout'), {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -1820,7 +1745,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check if user is already logged in on page load
     async function checkAuthStatus() {
         try {
-            const response = await fetch('/api/user', {
+            const response = await fetch(getApiUrl('/api/user'), {
                 credentials: 'include'
             });
 
@@ -1836,21 +1761,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } else {
                 updateUIForLoggedOutUser();
-                // If user is not authenticated but agent mode was saved, disable it
+                // Agent mode no longer requires authentication, so keep it enabled if saved
                 const savedAgentMode = localStorage.getItem('agentMode');
                 if (savedAgentMode === 'true') {
-                    localStorage.setItem('agentMode', 'false');
-                    setAgentMode(false);
+                    setAgentMode(true);
                 }
             }
         } catch (error) {
             console.error('Auth check error:', error);
             updateUIForLoggedOutUser();
-            // Disable agent mode if there's an error
+            // Agent mode no longer requires authentication, so keep it enabled if saved
             const savedAgentMode = localStorage.getItem('agentMode');
             if (savedAgentMode === 'true') {
-                localStorage.setItem('agentMode', 'false');
-                setAgentMode(false);
+                setAgentMode(true);
             }
         }
     }

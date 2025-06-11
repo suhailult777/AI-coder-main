@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: ai-coder-backend
+    env: node
+    plan: starter
+    buildCommand: pnpm install
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-coder-db
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://ai-coder-frontend.netlify.app
+    
+databases:
+  - name: ai-coder-db
+    databaseName: ai_coder_production
+    user: ai_coder_user
+    plan: starter
