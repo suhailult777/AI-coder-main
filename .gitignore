@@ -5,8 +5,10 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 
-# Environment variables
+# Environment variables (IMPORTANT: Contains API keys and secrets)
 .env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
@@ -15,6 +17,9 @@ package-lock.json
 # User data (contains sensitive information)
 server/users.json
 server/users.backup.*.json
+
+# Agent status files (runtime generated)
+agent/agent-status.json
 
 # Database migration files
 scripts/migration-*.log
