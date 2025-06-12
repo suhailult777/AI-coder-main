@@ -1,0 +1,34 @@
+[
+  {
+    "id": "464a51b1-bb9d-4426-8b8c-5bd741d8020e",
+    "email": "suhailult777@gmail.com",
+    "password": "$2a$12$HfgYuimxdwhYdAfRrHtmFOVOL22Tj7mTRE6gYL3WKMROnZEwuIZ.6",
+    "provider": "local",
+    "createdAt": "2025-06-09T17:54:12.721Z",
+    "updatedAt": "2025-06-09T17:54:12.723Z"
+  },
+  {
+    "id": "872131c2-22b1-4fd3-9e74-45d562394701",
+    "email": "demo@example.com",
+    "name": "Demo User",
+    "provider": "google",
+    "createdAt": "2025-06-09T17:54:41.163Z",
+    "updatedAt": "2025-06-09T17:54:41.166Z"
+  },
+  {
+    "id": "a1dbff1d-c317-47f6-af6e-297affbfbe16",
+    "email": "suhail@gmail.com",
+    "password": "$2a$12$FRrRQWcKU8/MGiXHh5oOFeCWgxSgj9LZJ9Epj/0wAklQtEbstuxP.",
+    "provider": "local",
+    "createdAt": "2025-06-09T18:01:39.623Z",
+    "updatedAt": "2025-06-09T18:01:39.625Z"
+  },
+  {
+    "id": "0b303f28-6d01-4199-83d5-fb73176b5f67",
+    "email": "midrisi@gmail.com",
+    "password": "$2a$12$MdLOcwuwjRiI0VAebzx5Uu9iuOIOxq5cF3gMT2x5mtCGyvzMNN8fe",
+    "provider": "local",
+    "createdAt": "2025-06-09T18:27:38.097Z",
+    "updatedAt": "2025-06-09T18:27:38.098Z"
+  }
+]

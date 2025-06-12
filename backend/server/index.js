@@ -11,8 +11,8 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure dotenv to load from parent directory FIRST
-const envPath = path.join(__dirname, '..', '.env');
+// Configure dotenv to load from project root
+const envPath = path.join(__dirname, '..', '..', '.env');
 console.log('Loading .env from:', envPath);
 config({ path: envPath });
 
@@ -158,12 +158,12 @@ async function initializeServer() {
       }
     });
 
-    // Serve static files
-    app.use(express.static(path.join(__dirname, '..')));
+    // Serve static files from frontend directory
+    app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
 
     // Serve the main HTML file for the root route
     app.get('/', (req, res) => {
-      res.sendFile(path.join(__dirname, '..', 'index.html'));
+      res.sendFile(path.join(__dirname, '..', '..', 'frontend', 'index.html'));
     });
 
     // API health check
