@@ -68,7 +68,7 @@ function updateStatus(status, message, projectName = null, projectPath = null, t
     }
 }
 
-// Function to detect and open created project folders in VSCode
+// Function to detect and open created project folders or files in VSCode
 async function openCreatedProjectInVSCode() {
     try {
         const currentDir = process.cwd();
@@ -78,6 +78,16 @@ async function openCreatedProjectInVSCode() {
         const projectDirs = entries
             .filter(entry => entry.isDirectory())
             .filter(entry => !['node_modules', '.git', '.vscode'].includes(entry.name))
+            .map(entry => entry.name);
+
+        // Also look for recently created project files (html, css, js, etc.)
+        const projectFiles = entries
+            .filter(entry => entry.isFile())
+            .filter(entry => {
+                const ext = path.extname(entry.name).toLowerCase();
+                return ['.html', '.css', '.js', '.json', '.md', '.txt', '.py', '.jsx', '.ts', '.tsx', '.vue'].includes(ext);
+            })
+            .filter(entry => entry.name !== 'agent-status.json') // Exclude status file
             .map(entry => entry.name);
 
         if (projectDirs.length > 0) {
@@ -90,7 +100,7 @@ async function openCreatedProjectInVSCode() {
                 }))
                 .sort((a, b) => b.stats.mtime - a.stats.mtime)[0];
 
-            console.log(`🎯 Opening project "${latestProject.name}" in VSCode...`);
+            console.log(`🎯 Opening project directory "${latestProject.name}" in VSCode...`);
             updateStatus('opening_vscode', `Opening project "${latestProject.name}" in VSCode...`, latestProject.name, latestProject.path);
 
             // Open the project directory in a new VSCode window
@@ -100,13 +110,29 @@ async function openCreatedProjectInVSCode() {
                     console.error(`❌ Failed to open VSCode: ${err.message}`);
                     updateStatus('error', `Failed to open VSCode: ${err.message}`);
                 } else {
-                    console.log(`✅ Successfully opened "${latestProject.name}" in VSCode`);
+                    console.log(`✅ Successfully opened project directory "${latestProject.name}" in VSCode`);
                     updateStatus('completed', `✅ Project "${latestProject.name}" created and opened in VSCode!`, latestProject.name, latestProject.path);
                 }
             });
+        } else if (projectFiles.length > 0) {
+            // No directories but project files were created - open the agent directory
+            console.log(`🎯 Opening agent directory with project files (${projectFiles.join(', ')}) in VSCode...`);
+            updateStatus('opening_vscode', `Opening project files in VSCode...`, 'agent-project', currentDir);
+
+            // Open the current directory (agent folder) in a new VSCode window
+            const command = `code -n "${currentDir}"`;
+            exec(command, { shell: 'powershell.exe' }, (err, stdout, stderr) => {
+                if (err) {
+                    console.error(`❌ Failed to open VSCode: ${err.message}`);
+                    updateStatus('error', `Failed to open VSCode: ${err.message}`);
+                } else {
+                    console.log(`✅ Successfully opened agent directory with project files in VSCode`);
+                    updateStatus('completed', `✅ Project files created and opened in VSCode! Files: ${projectFiles.join(', ')}`, 'agent-project', currentDir);
+                }
+            });
         } else {
-            console.log('📁 No project directories found to open in VSCode');
-            updateStatus('completed', '📁 Task completed - No new project directories created');
+            console.log('📁 No project directories or files found to open in VSCode');
+            updateStatus('completed', '📁 Task completed - No new project directories or files created');
         }
     } catch (error) {
         console.error('❌ Error detecting project directories:', error.message);
@@ -122,26 +148,27 @@ const SYSTEM_PROMPT = `
     Then, you THINK how to resolve that query atleast 3-4 times and make sure that all inputs is here
     If there is a need to call a tool, you call an ACTION event with tool and input parameters.
     If there is an action call, wait for the OBSERVE that is output of the tool.
-    Based on the OBSERVE from prev step, you either output or repeat the loop.
-
-    rules:
+    Based on the OBSERVE from prev step, you either output or repeat the loop.    rules:
     - Always wait for next step and wait for the next step.
     - Always output a single step and wait for the next step.
     - Output must be strictly JSON
     - Only call tool action from Available Tools only.
     - Strictly follow the output format in JSON
     - You are running on Windows, use Windows PowerShell commands (like 'type' instead of 'cat', 'dir' instead of 'ls')
+    - When creating projects, ALWAYS create a dedicated project folder first using: New-Item -Path "project-name" -ItemType Directory -Force
+    - Then navigate into the project folder and create all files inside it
     - To create files with content, use: @'
 <content>
-'@ | Out-File -FilePath "filename" -Encoding UTF8
-    - For simple files, use: New-Item -Path "filename" -ItemType File -Force
-    - For directories, use: New-Item -Path "foldername" -ItemType Directory -Force
+'@ | Out-File -FilePath "project-name/filename" -Encoding UTF8
+    - For simple files, use: New-Item -Path "project-name/filename" -ItemType File -Force
     - Use double quotes around file paths to handle spaces properly
-    - Use -Force parameter to overwrite existing files/folders if needed    - For multi-line content, use proper here-string syntax with @' and '@ on separate lines
+    - Use -Force parameter to overwrite existing files/folders if needed
+    - For multi-line content, use proper here-string syntax with @' and '@ on separate lines
     - Make sure HTML, CSS, JS code is properly formatted with line breaks
     - When working on web projects, always create complete, functional applications
-    - For web apps, create proper file structure with separate HTML, CSS, and JS files
-    - Focus on creating the files and folders, VSCode is already open for you
+    - For web apps, create proper file structure with separate HTML, CSS, and JS files in a dedicated project folder
+    - IMPORTANT: Always create a project folder first, then create files inside it - this ensures VSCode opens correctly
+    - Project folder names should be descriptive (e.g., "todo-app", "calculator", "portfolio-website")
 
    Available Tools:
    - getWheatherInfo(city: string): string

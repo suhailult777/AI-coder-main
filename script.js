@@ -48,8 +48,25 @@ async function handleAgentMode(prompt, output, generateButton, copyButton, copyB
     `;
 
     try {
-        // Authentication removed for serverless compatibility
-        // Agent mode now works without authentication to ensure compatibility with Vercel deployments
+        // Check authentication before proceeding
+        if (!window.currentUser) {
+            output.innerHTML = `
+                <div class="auth-required-message">
+                    <div class="auth-icon">🔒</div>
+                    <h3>Authentication Required</h3>
+                    <p>Please sign in to access Agent Mode - our premium AI coding assistant.</p>
+                    <button class="auth-action-btn" onclick="document.getElementById('authModal').classList.add('active'); document.body.style.overflow = 'hidden';">
+                        Sign In
+                    </button>
+                </div>
+            `;
+            if (generateButton) {
+                generateButton.disabled = false;
+                generateButton.textContent = 'Enter';
+                generateButton.classList.remove('generating');
+            }
+            return;
+        }
 
         // Make sure we have a prompt
         if (!prompt || prompt.trim() === '') {
@@ -156,7 +173,7 @@ function startAgentStatusStreaming() {
     updateConnectionIndicator('connecting');
 
     // Create new EventSource connection
-    agentEventSource = new EventSource('/api/agent-stream');
+    agentEventSource = new EventSource('/api/agent/status/stream');
 
     agentEventSource.onopen = function (event) {
         console.log('🔌 SSE connection opened');
@@ -1041,8 +1058,32 @@ document.addEventListener('DOMContentLoaded', function () {
         agentModeToggleButton.addEventListener('click', (e) => {
             e.preventDefault();
 
-            // Authentication removed for serverless compatibility
-            // Agent mode now works without authentication to ensure compatibility with Vercel deployments
+            // Check authentication before allowing agent mode
+            if (!window.currentUser) {
+                // Store intention to activate agent mode
+                localStorage.setItem('pendingAgentMode', 'true');
+                
+                // Show auth modal with specific message about agent mode
+                if (authModal) {
+                    authModal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                    
+                    // Show agent-specific authentication message
+                    showAuthError('Please sign in to access Agent Mode - our premium AI coding assistant.', false);
+                    
+                    // Focus on auth modal
+                    setTimeout(() => {
+                        const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                        if (firstFocusable) {
+                            firstFocusable.focus();
+                        }
+                        trapFocus(authModal);
+                    }, 150);
+                }
+                return;
+            }
+
+            // User is authenticated, allow agent mode toggle
             const isCurrentlyAgentMode = bodyElement.classList.contains('agent-mode');
             setAgentMode(!isCurrentlyAgentMode);
         });
@@ -1322,8 +1363,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.currentUser = data;
                 updateUIForLoggedInUser(data);
 
-                // Agent mode no longer requires authentication
-                showAuthError('Login successful! Welcome back.', true);
+                // Check if user was trying to access agent mode before login
+                const pendingAgentMode = localStorage.getItem('pendingAgentMode');
+                if (pendingAgentMode === 'true') {
+                    localStorage.removeItem('pendingAgentMode');
+                    setAgentMode(true);
+                    showAuthError('Welcome to Agent Mode! You now have access to our premium AI coding assistant.', true);
+                } else {
+                    showAuthError('Login successful! Welcome back.', true);
+                }
 
                 setTimeout(() => {
                     closeModal();
@@ -1748,27 +1796,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.currentUser = user;
                 updateUIForLoggedInUser(user);
 
-                // Check if agent mode should be enabled
+                // Check if agent mode should be enabled (only if authenticated)
                 const savedAgentMode = localStorage.getItem('agentMode');
                 if (savedAgentMode === 'true') {
                     setAgentMode(true);
                 }
             } else {
                 updateUIForLoggedOutUser();
-                // Agent mode no longer requires authentication, so keep it enabled if saved
-                const savedAgentMode = localStorage.getItem('agentMode');
-                if (savedAgentMode === 'true') {
-                    setAgentMode(true);
-                }
+                // Disable agent mode if not authenticated
+                setAgentMode(false);
             }
         } catch (error) {
             console.error('Auth check error:', error);
             updateUIForLoggedOutUser();
-            // Agent mode no longer requires authentication, so keep it enabled if saved
-            const savedAgentMode = localStorage.getItem('agentMode');
-            if (savedAgentMode === 'true') {
-                setAgentMode(true);
-            }
+            // Disable agent mode on authentication error
+            setAgentMode(false);
         }
     }
 
