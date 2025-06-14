@@ -1,4 +1,4 @@
-const API_KEY = "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"; // Replace with your actual API key
+const API_KEY = "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"; // Replace with your actual API key
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Global variables
@@ -1062,15 +1062,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!window.currentUser) {
                 // Store intention to activate agent mode
                 localStorage.setItem('pendingAgentMode', 'true');
-                
+
                 // Show auth modal with specific message about agent mode
                 if (authModal) {
                     authModal.classList.add('active');
                     document.body.style.overflow = 'hidden';
-                    
+
                     // Show agent-specific authentication message
                     showAuthError('Please sign in to access Agent Mode - our premium AI coding assistant.', false);
-                    
+
                     // Focus on auth modal
                     setTimeout(() => {
                         const firstFocusable = authModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
