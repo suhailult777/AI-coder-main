@@ -42,15 +42,17 @@ A modern, browser-based code editor enhanced with AI capabilities, full authenti
 
 ### Test Agent Features
 
-- **Intelligent Code Analysis**: Uses Mistral Codestral for advanced code analysis
-- **Automated Testing**: Generates and runs comprehensive tests for created applications
-- **Multi-Language Support**: Tests various project types (HTML/CSS/JS, Node.js, Python, etc.)
-- **Security Analysis**: Identifies potential security vulnerabilities and issues
-- **Performance Analysis**: Evaluates code performance and optimization opportunities
-- **Best Practices Review**: Checks adherence to coding standards and best practices
-- **Real-time Test Streaming**: Live updates during test execution and analysis
-- **Detailed Reports**: Comprehensive analysis reports saved within project folders
-- **Integration Testing**: Tests application functionality, user experience, and edge cases
+- **Intelligent Code Analysis**: Uses Mistral Codestral for advanced code analysis and quality assessment
+- **Automated Testing**: Generates comprehensive test strategies and identifies test cases
+- **Multi-Language Support**: Analyzes various file types (.html, .css, .js, .json, .md, .py, .java, .cpp, .c, .ts, .jsx, .tsx)
+- **Security Analysis**: Identifies potential security vulnerabilities and security best practices
+- **Performance Analysis**: Evaluates code performance and suggests optimization opportunities
+- **Code Quality Review**: Checks adherence to coding standards, maintainability, and best practices
+- **Real-time Test Streaming**: Live updates during test execution with Server-Sent Events (SSE)
+- **Detailed Reports**: Comprehensive markdown reports saved as `TEST_ANALYSIS_REPORT.md` within project folders
+- **Project Structure Analysis**: Analyzes complete project structure and file organization
+- **Unit Test Suggestions**: Provides specific unit test recommendations for code components
+- **Automated Report Generation**: Creates executive summaries and actionable improvement recommendations
 
 ## 🤖 Multi-Agent System
 
@@ -66,6 +68,7 @@ The Multi-Agent System consists of two intelligent AI agents working together to
 The Code Agent is responsible for understanding user requirements and generating complete applications:
 
 **Capabilities:**
+
 - Complex project creation and file management
 - Real-time code streaming with syntax highlighting
 - Directory structure planning and creation
@@ -74,6 +77,7 @@ The Code Agent is responsible for understanding user requirements and generating
 - Progressive development with live feedback
 
 **Enhanced Streaming Features:**
+
 - **Live Code Display**: See the actual code being written in real-time
 - **File Creation Tracking**: Visual indicators for files and folders being created
 - **Tool Call Monitoring**: Real-time feedback on what tools are being executed
@@ -82,42 +86,66 @@ The Code Agent is responsible for understanding user requirements and generating
 
 ### Test Agent (Analysis Agent)
 
-The Test Agent automatically analyzes generated code and provides comprehensive testing:
+The Test Agent automatically analyzes generated code and provides comprehensive testing using **Mistral Codestral**, specifically designed for code analysis and understanding.
 
 **Analysis Capabilities:**
-- **Functional Testing**: Verifies that code works as intended
-- **Security Analysis**: Identifies potential vulnerabilities
-- **Performance Evaluation**: Checks for optimization opportunities
-- **Code Quality Review**: Ensures adherence to best practices
-- **Cross-browser Compatibility**: Tests web applications across different browsers
-- **Accessibility Compliance**: Checks for accessibility standards
+
+- **Functional Testing**: Verifies that code works as intended and suggests test cases
+- **Security Analysis**: Identifies potential vulnerabilities and security best practices
+- **Performance Evaluation**: Checks for optimization opportunities and performance bottlenecks
+- **Code Quality Review**: Ensures adherence to best practices, maintainability, and documentation standards
+- **Cross-Platform Compatibility**: Analyzes compatibility across different environments and browsers
+- **Accessibility Compliance**: Checks for accessibility standards and inclusive design practices
+- **Architecture Analysis**: Reviews project structure, file organization, and design patterns
+
+**Supported File Types:**
+
+- Web Technologies: `.html`, `.css`, `.js`, `.jsx`, `.tsx`
+- Programming Languages: `.py`, `.java`, `.cpp`, `.c`, `.ts`
+- Configuration Files: `.json`, `.md`
 
 **Test Agent Workflow:**
-1. **Project Detection**: Automatically detects newly created projects
-2. **Code Analysis**: Analyzes all files in the project directory
-3. **Test Generation**: Creates appropriate tests based on project type
-4. **Execution**: Runs tests and validates functionality
-5. **Report Generation**: Creates detailed analysis reports
+
+1. **Project Detection**: Automatically detects newly created projects or analyzes specified project paths
+2. **File Scanning**: Recursively scans project directories (excluding node_modules, .git, dist, build)
+3. **Individual File Analysis**: Analyzes each file using Mistral Codestral with structured prompts
+4. **Comprehensive Reporting**: Generates detailed analysis reports with actionable recommendations
+5. **Progress Streaming**: Real-time updates via Server-Sent Events showing analysis progress
+6. **Report Generation**: Creates markdown reports saved as `TEST_ANALYSIS_REPORT.md` in the project folder
+
+**Analysis Report Structure:**
+
+- **Executive Summary**: Overall project quality assessment
+- **Key Findings**: Most important issues and recommendations prioritized by impact
+- **Test Plan**: Comprehensive testing strategy with specific test cases
+- **Priority Issues**: Critical issues that should be addressed first
+- **Security Recommendations**: Security vulnerabilities and mitigation strategies
+- **Performance Optimization**: Performance improvement suggestions
+- **Code Quality Metrics**: Maintainability, documentation, and best practices compliance
+- **Detailed File Analysis**: Individual file breakdowns with specific recommendations
+
 6. **Real-time Updates**: Streams progress and findings to the frontend
 
 ### How the Multi-Agent System Works
 
 1. **User Request**: User submits a coding request through the web interface
-2. **Code Agent Activation**: 
+2. **Code Agent Activation**:
    - Analyzes the request and breaks it down into actionable steps
    - Creates project structure and files
    - Streams real-time progress including code content
    - Opens the project in VSCode
-3. **Test Agent Activation**: 
-   - Triggered automatically when "Test Application" button is clicked
-   - Analyzes the generated code comprehensively
-   - Runs tests and provides detailed feedback
-   - Saves analysis reports within the project directory
+3. **Test Agent Activation**:
+   - Triggered when user clicks the "Test Application" button (appears after code generation)
+   - Analyzes the generated code using Mistral Codestral
+   - Performs comprehensive code analysis with real-time streaming
+   - Generates detailed analysis report saved as `TEST_ANALYSIS_REPORT.md` in project directory
+   - Provides actionable recommendations and improvement suggestions
 4. **Results**: User receives both the generated code and comprehensive test analysis
 
 ### User Flow
 
 1. **Standard Development Flow**:
+
    - Toggle to **Agent Mode** in the web interface
    - Enter a complex coding request (e.g., "Build a complete REST API with authentication")
    - Click "Enter" to submit the request
@@ -126,28 +154,30 @@ The Test Agent automatically analyzes generated code and provides comprehensive 
    - Click "Test Application" when it appears to run comprehensive analysis
 
 2. **Multi-Agent Workflow**:
-   - **Code Agent**: Generates the requested application with real-time feedback
-   - **Test Agent**: Analyzes the generated code and provides quality assurance
-   - **Integration**: Both agents work together to deliver a complete solution
+   - **Code Agent**: Generates the requested application with real-time code streaming
+   - **Test Agent**: Analyzes the generated code using Mistral Codestral for quality assurance
+   - **Integration**: Both agents work together to deliver a complete, tested solution with comprehensive reports
 
 ### Technical Flow
 
 1. **Frontend Detection**: Interface detects agent mode and calls `/api/agent` endpoint
-2. **Code Agent Execution**: 
+2. **Code Agent Execution**:
    - Backend spawns the code agent process
    - Agent creates project files with detailed streaming
    - Real-time updates show code content, file creation, and tool usage
    - VSCode integration for immediate development access
 3. **Test Agent Activation**:
-   - User clicks "Test Application" button (appears after code generation)
-   - Backend spawns test agent with Mistral Codestral
-   - Comprehensive code analysis with real-time streaming
-   - Detailed reports saved in project directory
+   - User clicks "Test Application" button (appears after code generation completes)
+   - Backend spawns test agent process with Mistral Codestral
+   - Comprehensive code analysis with real-time streaming via SSE
+   - Detailed markdown reports saved as `TEST_ANALYSIS_REPORT.md` in project directory
+   - Analysis includes security, performance, quality, and testing recommendations
 4. **Results Delivery**: Complete application with analysis reports and recommendations
 
 ### Agent Capabilities
 
 #### Code Agent Capabilities
+
 - **Project Creation**: Create complete project structures with proper organization
 - **File Management**: Create HTML, CSS, JavaScript, and other files with full content
 - **Directory Organization**: Organize files into logical folder structures
@@ -158,15 +188,20 @@ The Test Agent automatically analyzes generated code and provides comprehensive 
 - **Structured Thinking**: START → THINK → ACTION → OBSERVE → OUTPUT workflow
 
 #### Test Agent Capabilities
-- **Multi-Language Analysis**: Supports web apps, Node.js, Python, and more
-- **Functional Testing**: Verifies core functionality and user interactions
-- **Security Analysis**: Identifies vulnerabilities and security best practices
-- **Performance Testing**: Evaluates load times, responsiveness, and optimization
-- **Code Quality Review**: Checks coding standards, documentation, and maintainability
-- **Accessibility Testing**: Ensures compliance with accessibility standards
-- **Cross-Platform Testing**: Tests compatibility across different environments
-- **Automated Reporting**: Generates comprehensive analysis reports
-- **Real-time Feedback**: Streams testing progress and findings live
+
+- **Multi-Language Analysis**: Supports web apps (HTML/CSS/JS), Node.js, Python, TypeScript, and more
+- **Functional Testing**: Verifies core functionality and suggests comprehensive test cases
+- **Security Analysis**: Identifies vulnerabilities, security best practices, and potential attack vectors
+- **Performance Testing**: Evaluates load times, responsiveness, memory usage, and optimization opportunities
+- **Code Quality Review**: Checks coding standards, documentation quality, maintainability, and technical debt
+- **Architecture Analysis**: Reviews project structure, design patterns, and code organization
+- **Accessibility Testing**: Ensures compliance with WCAG guidelines and inclusive design principles
+- **Cross-Platform Analysis**: Tests compatibility across different environments and platforms
+- **Automated Report Generation**: Creates comprehensive markdown reports with executive summaries
+- **Real-time Progress Streaming**: Live feedback during analysis with detailed status updates
+- **Unit Test Recommendations**: Suggests specific unit tests and testing strategies for each component
+- **Best Practices Compliance**: Evaluates adherence to industry standards and framework conventions
+- **Dependency Analysis**: Reviews third-party libraries and potential security/maintenance concerns
 
 ## 🚀 Getting Started
 
@@ -176,11 +211,20 @@ The Test Agent automatically analyzes generated code and provides comprehensive 
 - **pnpm** (recommended) or **npm** (package managers)
 - Modern web browser (Chrome, Firefox, Safari, Edge)
 - Internet connection (required for AI model access)
-- OpenRouter API key (for AI code generation)
-- **VSCode** (required for Agent Mode)
-- **Gemini API key** (required for Code Agent)
-- **Mistral API key** (required for Test Agent)
-- **PowerShell** (Windows) or **Terminal** (macOS/Linux)
+- **VSCode** (required for Agent Mode with automatic project opening)
+- **PowerShell** (Windows) or **Terminal** (macOS/Linux) for command execution
+
+**Required API Keys:**
+
+- **Gemini API key** (required for Code Agent) - Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **Mistral API key** (required for Test Agent) - Get from [Mistral AI Console](https://console.mistral.ai/)
+- **OpenRouter API key** (optional, for standard chat mode) - Get from [OpenRouter](https://openrouter.ai/)
+
+**Test Agent Requirements:**
+
+- **Mistral Codestral**: Specialized AI model for code analysis and understanding
+- **Project Directory Access**: Test Agent needs read access to generated project folders
+- **File System Permissions**: Write access to create analysis reports in project directories
 
 ### Installation
 
@@ -372,36 +416,182 @@ For Google authentication to work in production:
 1. **Enable Agent Mode**: Toggle the "Agent Mode" switch in the interface
 2. **Enter Complex Request**: Describe a complex coding task (e.g., "Build a complete todo app with local storage")
 3. **Submit Request**: Click "Enter" to submit your request
-4. **Watch Real-time Development**: 
+4. **Watch Real-time Development**:
    - See actual code being written in real-time
    - Monitor file and folder creation
    - Track tool execution and commands
 5. **VSCode Integration**: The system will automatically:
    - Open a new VSCode window with the created project
    - Organize files in proper directory structure
-6. **Test Your Application**: 
-   - Click the "Test Application" button when it appears
-   - Watch comprehensive code analysis in real-time
-   - Review detailed test reports and recommendations
+6. **Test Your Application**:
+   - Click the "Test Application" button when it appears (after code generation)
+   - Watch comprehensive code analysis in real-time with detailed progress updates
+   - Review the generated `TEST_ANALYSIS_REPORT.md` file in your project directory
+   - Follow the actionable recommendations for code improvements and testing strategies
 
 ### Multi-Agent Workflow
 
 1. **Code Generation Phase**:
-   - Code Agent (Gemini) analyzes your request
-   - Creates project structure and writes code
-   - Streams progress with live code preview
-   - Shows file creation and tool execution
+
+   - Code Agent (Gemini) analyzes your request and breaks it into actionable steps
+   - Creates complete project structure with proper file organization
+   - Streams progress with live code preview and syntax highlighting
+   - Shows real-time file creation, directory structure, and tool execution
+   - Automatically opens the project in VSCode for immediate development access
 
 2. **Testing Phase**:
-   - Test Agent (Mistral Codestral) analyzes the generated code
-   - Performs comprehensive testing and analysis
-   - Streams testing progress and findings
-   - Generates detailed reports within the project folder
+
+   - Test Agent (Mistral Codestral) automatically analyzes the generated code
+   - Performs comprehensive testing including security, performance, and quality analysis
+   - Streams testing progress with detailed status updates and findings
+   - Generates a comprehensive `TEST_ANALYSIS_REPORT.md` within the project folder
+   - Provides actionable recommendations and improvement suggestions
 
 3. **Results**:
-   - Complete, tested application ready for use
-   - Comprehensive analysis and recommendations
-   - VSCode integration for immediate development
+   - Complete, analyzed application ready for development and deployment
+   - Comprehensive analysis report with executive summary and detailed findings
+   - VSCode integration for immediate development and code modification
+   - Test recommendations and security best practices implementation guide
+
+## 🧪 Test Agent Details
+
+### Overview
+
+The Test Agent is a specialized AI-powered code analysis system that uses **Mistral Codestral** to provide comprehensive code quality assessment, security analysis, and testing recommendations.
+
+### Key Features
+
+**Intelligent Code Analysis:**
+
+- Analyzes code structure, logic, and implementation patterns
+- Identifies potential bugs, edge cases, and error conditions
+- Evaluates code maintainability and readability
+- Checks for adherence to coding standards and best practices
+
+**Security Assessment:**
+
+- Identifies security vulnerabilities and potential attack vectors
+- Reviews input validation and sanitization practices
+- Checks for secure coding practices and common security pitfalls
+- Provides specific security recommendations and mitigation strategies
+
+**Performance Analysis:**
+
+- Evaluates code efficiency and performance characteristics
+- Identifies performance bottlenecks and optimization opportunities
+- Reviews resource usage and memory management
+- Suggests performance improvements and best practices
+
+**Testing Strategy:**
+
+- Generates comprehensive test plans and test case recommendations
+- Suggests unit tests, integration tests, and end-to-end testing approaches
+- Identifies critical paths and edge cases that require testing
+- Provides specific testing frameworks and methodologies recommendations
+
+### Test Agent API Endpoints
+
+**Start Test Agent Analysis:**
+
+```
+POST /api/test-agent/run
+Content-Type: application/json
+
+{
+  "code": "Code content to analyze (optional - will analyze latest project if not provided)"
+}
+```
+
+**Get Real-time Status Updates:**
+
+```
+GET /api/test-agent/status/stream
+Accept: text/event-stream
+```
+
+**Get Analysis Report:**
+
+```
+GET /api/test-agent/report
+```
+
+### Test Agent Configuration
+
+The Test Agent can be configured via environment variables:
+
+```env
+# Test Agent Configuration
+MISTRAL_API_KEY=your_mistral_api_key_here
+TARGET_PROJECT_PATH=/path/to/specific/project  # Optional: specify exact project to analyze
+```
+
+### Analysis Report Structure
+
+The Test Agent generates comprehensive reports in markdown format with the following sections:
+
+1. **Executive Summary**
+
+   - Overall project quality score
+   - Key findings and recommendations summary
+   - Critical issues requiring immediate attention
+
+2. **Security Analysis**
+
+   - Security vulnerabilities identified
+   - Risk assessment and impact analysis
+   - Specific remediation steps and best practices
+
+3. **Performance Assessment**
+
+   - Performance bottlenecks and optimization opportunities
+   - Resource usage analysis
+   - Scalability considerations and recommendations
+
+4. **Code Quality Review**
+
+   - Maintainability and readability assessment
+   - Documentation quality and completeness
+   - Adherence to coding standards and conventions
+
+5. **Testing Strategy**
+
+   - Comprehensive test plan with specific test cases
+   - Testing framework recommendations
+   - Edge cases and error condition testing
+
+6. **Detailed File Analysis**
+   - Individual file breakdowns with specific recommendations
+   - Line-by-line code review for critical sections
+   - Refactoring suggestions and improvements
+
+### Usage Examples
+
+**Basic Test Agent Usage:**
+
+1. Create a project using the Code Agent in Agent Mode
+2. Click the "Test Application" button when it appears
+3. Watch real-time analysis progress in the streaming output
+4. Review the generated `TEST_ANALYSIS_REPORT.md` in your project folder
+
+**Advanced Test Agent Usage:**
+
+```bash
+# Run Test Agent on specific project
+TARGET_PROJECT_PATH="/path/to/your/project" node backend/agents/test_agent.js
+
+# Run Test Agent with custom environment
+MISTRAL_API_KEY="your_key" TARGET_PROJECT_PATH="/path/to/project" node backend/agents/test_agent.js
+```
+
+### Test Agent Streaming Output
+
+The Test Agent provides real-time streaming updates during analysis:
+
+- **Project Detection**: Shows which project is being analyzed
+- **File Scanning**: Lists all files found for analysis
+- **Individual File Analysis**: Progress updates for each file being analyzed
+- **Analysis Completion**: Summary of findings and report generation
+- **Error Handling**: Detailed error messages and troubleshooting information
 
 ### Example Prompts
 
@@ -422,34 +612,78 @@ For Google authentication to work in production:
 
 ### Running Tests
 
-The project includes comprehensive tests for all major functionality:
+The project includes comprehensive tests for all major functionality including the multi-agent system:
 
 ```bash
-# Run all tests
+# Run all tests (includes multi-agent testing)
 npm test
 
 # Run specific test files
-node test/test-agent.js
-node test/test-integration.js
-node test/test-sse-flow.js
+node test/test-agent.js          # Multi-agent integration test
+node test/test-integration.js    # General integration tests
+node test/test-sse-flow.js       # Server-Sent Events testing
 ```
 
 ### Test Coverage
 
+**Multi-Agent System Tests:**
+
+- **Code Agent Tests**: Project creation, VSCode integration, command execution
+- **Test Agent Tests**: Code analysis, report generation, streaming functionality
+- **Integration Tests**: End-to-end multi-agent workflow testing
+
+**Core Functionality Tests:**
+
 - **Authentication Tests**: User registration, login, session management
-- **Agent Mode Tests**: Agent spawning, VSCode integration, command execution
-- **SSE Tests**: Real-time streaming functionality
-- **Integration Tests**: End-to-end workflow testing
+- **SSE Tests**: Real-time streaming functionality for both agents
 - **Database Tests**: PostgreSQL and JSON storage functionality
+- **API Tests**: All endpoints including agent-specific APIs
+
+### Multi-Agent Testing Workflow
+
+The `test/test-agent.js` file demonstrates the complete multi-agent workflow:
+
+1. **Authentication Setup**: Creates test user and establishes session
+2. **Code Agent Test**: Triggers code generation with Gemini
+3. **Project Creation Verification**: Confirms project structure is created
+4. **Test Agent Activation**: Triggers Mistral Codestral analysis
+5. **Report Verification**: Confirms analysis report generation
+6. **Integration Validation**: Verifies complete workflow success
 
 ### Debug Tools
 
 The project includes several debug tools in the `test/` directory:
 
-- `agent-debug.html`: Agent mode debugging interface
-- `debug-frontend.html`: Frontend debugging tools
-- `live-diagnostic.html`: Real-time system diagnostics
-- `test-sse.html`: Server-Sent Events testing interface
+- `debug.html`: Multi-agent debugging interface with real-time monitoring
+- `test-sse.html`: Server-Sent Events testing for both Code and Test Agents
+- `test-stream.html`: Streaming functionality testing interface
+
+### Testing the Test Agent Independently
+
+You can test the Test Agent independently using:
+
+```bash
+# Test with latest project
+node backend/agents/test_agent.js
+
+# Test with specific project path
+TARGET_PROJECT_PATH="/path/to/project" node backend/agents/test_agent.js
+
+# Test with custom Mistral API key
+MISTRAL_API_KEY="your_key" node backend/agents/test_agent.js
+```
+
+### Test Agent Status Monitoring
+
+Monitor Test Agent status in real-time:
+
+```bash
+# Check current status
+cat backend/agents/test-agent-status.json
+
+# Monitor live updates via API
+curl -N http://localhost:3000/api/test-agent/status/stream
+```
 
 ## 🌐 Technologies Used
 
@@ -479,9 +713,19 @@ The project includes several debug tools in the `test/` directory:
 
 ### AI Integration
 
-- **OpenRouter API**: Access to multiple AI models
-- **Google Gemini 2.0 Flash**: Primary AI model for agent mode
-- **Autonomous Agents**: AI-powered task execution and automation
+- **OpenRouter API**: Access to multiple AI models for general code generation
+- **Google Gemini 2.0 Flash**: Primary AI model for Code Agent (project creation and development)
+- **Mistral Codestral**: Specialized AI model for Test Agent (code analysis and testing)
+- **Autonomous Agents**: Multi-agent AI-powered task execution and automation
+- **Real-time AI Streaming**: Server-Sent Events integration for live AI responses
+
+### Multi-Agent Architecture
+
+- **Code Agent**: Gemini-powered autonomous development agent
+- **Test Agent**: Mistral Codestral-powered code analysis and testing agent
+- **Agent Coordination**: Seamless workflow between code generation and analysis
+- **Process Management**: Background agent processes with status monitoring
+- **Report Generation**: Automated analysis report creation in markdown format
 
 ### Agent Mode
 
@@ -508,11 +752,42 @@ The project includes several debug tools in the `test/` directory:
 - Verify agent dependencies are installed
 - Check server logs for error messages
 
-**Permission errors**
+#### Test Agent Issues
 
-- Ensure proper file system permissions
-- Run as administrator if necessary (Windows)
-- Check directory write permissions
+**Test Agent doesn't start**
+
+- Check Mistral API key in `.env` file: `MISTRAL_API_KEY=your_key_here`
+- Verify Mistral API key is valid at [Mistral Console](https://console.mistral.ai/)
+- Ensure Test Agent dependencies are installed: `npm install @mistralai/mistralai`
+- Check server logs for Test Agent process spawn errors
+
+**No project found to analyze**
+
+- Ensure Code Agent has created a project first using Agent Mode
+- Check that project exists in `backend/agent/` directory
+- Verify project folder contains analyzable files (.html, .css, .js, etc.)
+- Use `TARGET_PROJECT_PATH` environment variable to specify exact project path
+
+**Analysis fails or produces incomplete results**
+
+- Verify internet connection for Mistral API access
+- Check API rate limits - Test Agent includes delays to prevent rate limiting
+- Ensure project files are readable and contain valid code
+- Check Test Agent status file: `backend/agents/test-agent-status.json`
+
+**Report not generated**
+
+- Verify write permissions in project directory
+- Check available disk space for report generation
+- Ensure project path exists and is accessible
+- Look for specific error messages in Test Agent output
+
+**Streaming updates not working**
+
+- Check Server-Sent Events (SSE) connection in browser network tab
+- Verify `/api/test-agent/status/stream` endpoint is accessible
+- Clear browser cache and reload the page
+- Check for firewall or proxy blocking SSE connections
 
 #### Database Issues
 
@@ -615,9 +890,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [OpenRouter](https://openrouter.ai/) for providing access to various AI models
-- [Google Gemini](https://ai.google/discover/gemini/) for the powerful AI capabilities
+- [Google Gemini](https://ai.google/discover/gemini/) for the powerful AI capabilities in the Code Agent
+- [Mistral AI](https://mistral.ai/) for Codestral, the specialized code analysis model powering the Test Agent
 - [highlight.js](https://highlightjs.org/) for syntax highlighting
 - [Font Awesome](https://fontawesome.com/) for the icons
+- The open-source community for the various tools and libraries used in this project
 
 ## 📧 Contact
 
