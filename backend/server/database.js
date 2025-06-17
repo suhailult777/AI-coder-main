@@ -26,7 +26,7 @@ class Database {
         ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 10000, // Increased from 2000ms to 10000ms (10 seconds)
       });
 
       // Test the connection
@@ -36,10 +36,10 @@ class Database {
 
       this.isConnected = true;
       console.log('✅ Connected to Neon PostgreSQL database');
-      
+
       // Initialize database schema
       await this.initializeSchema();
-      
+
       return true;
     } catch (error) {
       console.error('❌ Database connection failed:', error.message);
@@ -102,16 +102,16 @@ class Database {
     if (!this.isConnected) {
       throw new Error('Database not connected');
     }
-    
+
     try {
       const start = Date.now();
       const result = await this.pool.query(text, params);
       const duration = Date.now() - start;
-      
+
       if (process.env.NODE_ENV === 'development') {
         console.log('🔍 Query executed:', { text, duration: `${duration}ms`, rows: result.rowCount });
       }
-      
+
       return result;
     } catch (error) {
       console.error('❌ Database query error:', error.message);

@@ -389,9 +389,6 @@ async function initializeServer() {
 
     // Cleanup on server shutdown
     process.on('SIGINT', () => {
-      if (fsWatcher) {
-        fsWatcher.close();
-      }
       sseClients.forEach(client => {
         try {
           client.res.end();
@@ -400,6 +397,7 @@ async function initializeServer() {
         }
       });
       sseClients.clear();
+      console.log('Server shutting down...');
       process.exit(0);
     });
 
