@@ -1,18 +1,20 @@
-# AI-Powered Code Editor with Authentication & Agent Mode
+# AI-Powered Multi-Agent Code Editor with Authentication & Testing
 
-A modern, browser-based code editor enhanced with AI capabilities, full authentication system, and autonomous agent mode. Features Google's Gemini 2.0 Flash and other AI models through the OpenRouter API, with secure user authentication and advanced agentic capabilities using vanilla HTML, CSS, and JavaScript.
+A modern, browser-based code editor enhanced with AI capabilities, full authentication system, autonomous code generation agent, and intelligent test agent. Features Google's Gemini 2.0 Flash for code generation and Mistral Codestral for code analysis and testing, with secure user authentication and advanced multi-agent capabilities using vanilla HTML, CSS, and JavaScript.
 
-![AI Code Editor Screenshot](https://via.placeholder.com/800x500.png?text=AI+Code+Editor+Screenshot)
+![AI Code Editor Screenshot](https://via.placeholder.com/800x500.png?text=AI+Multi-Agent+Code+Editor+Screenshot)
 
 ## 🌟 Features
 
 ### Core Features
 
 - **AI-Powered Code Generation**: Generate code using advanced AI models including Google Gemini 2.0 Flash
+- **Multi-Agent System**: Autonomous code generation agent + intelligent test agent working together
 - **Agent Mode**: Autonomous AI agent that can execute complex coding tasks with VSCode integration
+- **Test Agent**: Intelligent code analysis and testing using Mistral Codestral
 - **Multi-Language Support**: Supports syntax highlighting for various programming languages
 - **Dark/Light Mode**: Toggle between themes based on your preference or system settings
-- **Real-time Streaming**: Server-Sent Events (SSE) for real-time AI responses
+- **Real-time Streaming**: Server-Sent Events (SSE) for real-time AI responses from both agents
 - **Terminal Integration**: Execute commands and interact with system processes
 
 ### Authentication Features
@@ -35,47 +37,150 @@ A modern, browser-based code editor enhanced with AI capabilities, full authenti
 - **Structured Thinking**: Uses START → THINK → ACTION → OBSERVE → OUTPUT workflow
 - **Process Management**: Spawn and manage background processes
 - **Real-time Status Updates**: Monitor agent progress through SSE streams
+- **Code Content Streaming**: See actual code being written in real-time
+- **File/Folder Creation Tracking**: Visual feedback for all file and directory operations
 
-## 🤖 Agent Mode
+### Test Agent Features
+
+- **Intelligent Code Analysis**: Uses Mistral Codestral for advanced code analysis
+- **Automated Testing**: Generates and runs comprehensive tests for created applications
+- **Multi-Language Support**: Tests various project types (HTML/CSS/JS, Node.js, Python, etc.)
+- **Security Analysis**: Identifies potential security vulnerabilities and issues
+- **Performance Analysis**: Evaluates code performance and optimization opportunities
+- **Best Practices Review**: Checks adherence to coding standards and best practices
+- **Real-time Test Streaming**: Live updates during test execution and analysis
+- **Detailed Reports**: Comprehensive analysis reports saved within project folders
+- **Integration Testing**: Tests application functionality, user experience, and edge cases
+
+## 🤖 Multi-Agent System
 
 ### Overview
 
-Agent Mode allows users to submit complex coding requests through the web interface, which are then processed by an autonomous AI agent that can take actions to fulfill the requests. The agent can create files, manage directories, execute commands, and integrate with VSCode.
+The Multi-Agent System consists of two intelligent AI agents working together to provide a complete development experience:
 
-### How Agent Mode Works
+1. **Code Agent** (Gemini 2.0 Flash): Handles code generation, project creation, and development tasks
+2. **Test Agent** (Mistral Codestral): Analyzes generated code, creates tests, and provides quality assurance
 
-1. **User Flow**:
+### Code Agent (Primary Agent)
 
+The Code Agent is responsible for understanding user requirements and generating complete applications:
+
+**Capabilities:**
+- Complex project creation and file management
+- Real-time code streaming with syntax highlighting
+- Directory structure planning and creation
+- Integration with development tools (VSCode)
+- PowerShell/terminal command execution
+- Progressive development with live feedback
+
+**Enhanced Streaming Features:**
+- **Live Code Display**: See the actual code being written in real-time
+- **File Creation Tracking**: Visual indicators for files and folders being created
+- **Tool Call Monitoring**: Real-time feedback on what tools are being executed
+- **Content Preview**: Expandable code previews with syntax highlighting
+- **Progress Indicators**: Detailed status updates throughout the development process
+
+### Test Agent (Analysis Agent)
+
+The Test Agent automatically analyzes generated code and provides comprehensive testing:
+
+**Analysis Capabilities:**
+- **Functional Testing**: Verifies that code works as intended
+- **Security Analysis**: Identifies potential vulnerabilities
+- **Performance Evaluation**: Checks for optimization opportunities
+- **Code Quality Review**: Ensures adherence to best practices
+- **Cross-browser Compatibility**: Tests web applications across different browsers
+- **Accessibility Compliance**: Checks for accessibility standards
+
+**Test Agent Workflow:**
+1. **Project Detection**: Automatically detects newly created projects
+2. **Code Analysis**: Analyzes all files in the project directory
+3. **Test Generation**: Creates appropriate tests based on project type
+4. **Execution**: Runs tests and validates functionality
+5. **Report Generation**: Creates detailed analysis reports
+6. **Real-time Updates**: Streams progress and findings to the frontend
+
+### How the Multi-Agent System Works
+
+1. **User Request**: User submits a coding request through the web interface
+2. **Code Agent Activation**: 
+   - Analyzes the request and breaks it down into actionable steps
+   - Creates project structure and files
+   - Streams real-time progress including code content
+   - Opens the project in VSCode
+3. **Test Agent Activation**: 
+   - Triggered automatically when "Test Application" button is clicked
+   - Analyzes the generated code comprehensively
+   - Runs tests and provides detailed feedback
+   - Saves analysis reports within the project directory
+4. **Results**: User receives both the generated code and comprehensive test analysis
+
+### User Flow
+
+1. **Standard Development Flow**:
    - Toggle to **Agent Mode** in the web interface
    - Enter a complex coding request (e.g., "Build a complete REST API with authentication")
    - Click "Enter" to submit the request
-   - System automatically opens VSCode and starts the AI agent
+   - Watch real-time code generation with live streaming
+   - System automatically opens VSCode with the created project
+   - Click "Test Application" when it appears to run comprehensive analysis
 
-2. **Technical Flow**:
-   - Frontend detects agent mode and calls `/api/agent` endpoint
-   - Backend opens VSCode with new window and spawns agent process
-   - Agent uses structured thinking workflow to execute tasks
-   - Real-time progress updates via Server-Sent Events
+2. **Multi-Agent Workflow**:
+   - **Code Agent**: Generates the requested application with real-time feedback
+   - **Test Agent**: Analyzes the generated code and provides quality assurance
+   - **Integration**: Both agents work together to deliver a complete solution
+
+### Technical Flow
+
+1. **Frontend Detection**: Interface detects agent mode and calls `/api/agent` endpoint
+2. **Code Agent Execution**: 
+   - Backend spawns the code agent process
+   - Agent creates project files with detailed streaming
+   - Real-time updates show code content, file creation, and tool usage
+   - VSCode integration for immediate development access
+3. **Test Agent Activation**:
+   - User clicks "Test Application" button (appears after code generation)
+   - Backend spawns test agent with Mistral Codestral
+   - Comprehensive code analysis with real-time streaming
+   - Detailed reports saved in project directory
+4. **Results Delivery**: Complete application with analysis reports and recommendations
 
 ### Agent Capabilities
 
-- **File Creation**: Create HTML, CSS, JavaScript, and other files
-- **Directory Management**: Create and organize project folders
-- **Command Execution**: Run PowerShell/terminal commands
-- **VSCode Integration**: Open files and folders in VSCode
+#### Code Agent Capabilities
+- **Project Creation**: Create complete project structures with proper organization
+- **File Management**: Create HTML, CSS, JavaScript, and other files with full content
+- **Directory Organization**: Organize files into logical folder structures
+- **Command Execution**: Run PowerShell/terminal commands for setup and configuration
+- **VSCode Integration**: Automatic project opening in VSCode
+- **Real-time Streaming**: Live code content display with syntax highlighting
+- **Tool Monitoring**: Real-time feedback on tool execution and results
 - **Structured Thinking**: START → THINK → ACTION → OBSERVE → OUTPUT workflow
+
+#### Test Agent Capabilities
+- **Multi-Language Analysis**: Supports web apps, Node.js, Python, and more
+- **Functional Testing**: Verifies core functionality and user interactions
+- **Security Analysis**: Identifies vulnerabilities and security best practices
+- **Performance Testing**: Evaluates load times, responsiveness, and optimization
+- **Code Quality Review**: Checks coding standards, documentation, and maintainability
+- **Accessibility Testing**: Ensures compliance with accessibility standards
+- **Cross-Platform Testing**: Tests compatibility across different environments
+- **Automated Reporting**: Generates comprehensive analysis reports
+- **Real-time Feedback**: Streams testing progress and findings live
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 - **Node.js** (version 16 or higher)
-- **npm** or **pnpm** (package managers)
+- **pnpm** (recommended) or **npm** (package managers)
 - Modern web browser (Chrome, Firefox, Safari, Edge)
 - Internet connection (required for AI model access)
 - OpenRouter API key (for AI code generation)
 - **VSCode** (required for Agent Mode)
-- **Gemini API key** (required for Agent Mode)
+- **Gemini API key** (required for Code Agent)
+- **Mistral API key** (required for Test Agent)
+- **PowerShell** (Windows) or **Terminal** (macOS/Linux)
 
 ### Installation
 
@@ -86,7 +191,13 @@ Agent Mode allows users to submit complex coding requests through the web interf
    cd ai-code-editor
    ```
 
-2. Install dependencies:
+2. Install dependencies using pnpm (recommended):
+
+   ```bash
+   pnpm install
+   ```
+
+   Or using npm:
 
    ```bash
    npm install
@@ -109,16 +220,23 @@ Agent Mode allows users to submit complex coding requests through the web interf
    USE_DATABASE=false
    # DATABASE_URL=postgresql://user:pass@host:port/db?sslmode=require
 
-   # Agent Mode Configuration (Required for Agent Mode)
+   # Code Agent Configuration (Required for Code Agent)
    GEMINI_API_KEY=your_gemini_api_key_here
 
-   # OpenRouter API Configuration
+   # Test Agent Configuration (Required for Test Agent)
+   MISTRAL_API_KEY=your_mistral_api_key_here
+
+   # OpenRouter API Configuration (for standard chat mode)
    OPENROUTER_API_KEY=your_openrouter_api_key_here
    ```
 
 4. Start the development server:
 
    ```bash
+   # Using pnpm (recommended)
+   pnpm run dev
+
+   # Using npm
    npm run dev
    ```
 
@@ -252,13 +370,38 @@ For Google authentication to work in production:
 ### Agent Mode Usage
 
 1. **Enable Agent Mode**: Toggle the "Agent Mode" switch in the interface
-2. **Enter Complex Request**: Describe a complex coding task (e.g., "Build a complete REST API with authentication")
+2. **Enter Complex Request**: Describe a complex coding task (e.g., "Build a complete todo app with local storage")
 3. **Submit Request**: Click "Enter" to submit your request
-4. **VSCode Integration**: The system will automatically:
-   - Open a new VSCode window
-   - Start the AI agent with your request
-   - Begin autonomous task execution
-5. **Monitor Progress**: Watch real-time updates in the interface
+4. **Watch Real-time Development**: 
+   - See actual code being written in real-time
+   - Monitor file and folder creation
+   - Track tool execution and commands
+5. **VSCode Integration**: The system will automatically:
+   - Open a new VSCode window with the created project
+   - Organize files in proper directory structure
+6. **Test Your Application**: 
+   - Click the "Test Application" button when it appears
+   - Watch comprehensive code analysis in real-time
+   - Review detailed test reports and recommendations
+
+### Multi-Agent Workflow
+
+1. **Code Generation Phase**:
+   - Code Agent (Gemini) analyzes your request
+   - Creates project structure and writes code
+   - Streams progress with live code preview
+   - Shows file creation and tool execution
+
+2. **Testing Phase**:
+   - Test Agent (Mistral Codestral) analyzes the generated code
+   - Performs comprehensive testing and analysis
+   - Streams testing progress and findings
+   - Generates detailed reports within the project folder
+
+3. **Results**:
+   - Complete, tested application ready for use
+   - Comprehensive analysis and recommendations
+   - VSCode integration for immediate development
 
 ### Example Prompts
 
