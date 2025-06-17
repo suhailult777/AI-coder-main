@@ -1,0 +1,10 @@
+{
+  "status": "completed",
+  "message": "Analysis completed successfully!",
+  "timestamp": "2025-06-17T01:49:59.926Z",
+  "model": "codestral-latest",
+  "projectAnalyzed": "calculator-app",
+  "filesAnalyzed": 3,
+  "reportPath": "C:\\AI-coder-main - with-test-agent\\backend\\agent\\calculator-app\\TEST_ANALYSIS_REPORT.md",
+  "summary": "# Comprehensive Test Report for Calculator App\n\n## Executive Summary\n\nThe Calculator App project demonstrates a good foundation in HTML, CSS, and JavaScript. The code is generally well-structured and ..."
+}
