@@ -279,10 +279,7 @@ async function initializeServer() {
     // Function to broadcast status updates to all SSE clients
     function broadcastAgentStatus(statusData) {
       const message = `data: ${JSON.stringify({ type: 'status', ...statusData })}\n\n`;
-
-      // Remove disconnected clients
       const deadClients = [];
-
       sseClients.forEach(client => {
         try {
           client.res.write(message);
@@ -291,41 +288,104 @@ async function initializeServer() {
           deadClients.push(client);
         }
       });
-
-      // Clean up dead connections
       deadClients.forEach(client => sseClients.delete(client));
-
       if (sseClients.size > 0) {
         console.log(`📡 Broadcasted status to ${sseClients.size} SSE clients`);
       }
     }
 
-    // Watch for agent status file changes using fs.watch
-    const agentPath = path.join(__dirname, '..', 'agent');
-    const statusFilePath = path.join(agentPath, 'agent-status.json');
+    // --- Test Agent SSE Setup ---
+    const testAgentSseClients = new Set();
 
-    // Create agent directory if it doesn't exist
-    if (!fs.existsSync(agentPath)) {
-      fs.mkdirSync(agentPath, { recursive: true });
-    }
+    app.get('/api/test-agent/status/stream', (req, res) => {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
 
-    // Watch for changes to the status file
-    let fsWatcher = null;
-    try {
-      fsWatcher = fs.watch(statusFilePath, (eventType, filename) => {
-        if (eventType === 'change') {
-          try {
-            const statusData = JSON.parse(fs.readFileSync(statusFilePath, 'utf8'));
-            broadcastAgentStatus(statusData);
-          } catch (error) {
-            console.error('Error reading/broadcasting status file:', error);
-          }
+      const clientId = Date.now();
+      const newClient = { id: clientId, res };
+      testAgentSseClients.add(newClient);
+      console.log(`➕ Test agent SSE client connected: ${clientId}`);
+
+      req.on('close', () => {
+        testAgentSseClients.delete(newClient);
+        console.log(`➖ Test agent SSE client disconnected: ${clientId}`);
+      });
+    });
+
+    function broadcastTestAgentStatus(statusData) {
+      const message = `data: ${JSON.stringify(statusData)}\n\n`;
+      const deadClients = [];
+      testAgentSseClients.forEach(client => {
+        try {
+          client.res.write(message);
+        } catch (error) {
+          console.error(`Error sending to test agent SSE client ${client.id}:`, error.message);
+          deadClients.push(client);
         }
       });
-      console.log('📁 Watching agent status file for changes...');
-    } catch (error) {
-      console.log('📁 Status file does not exist yet, will start watching when created');
+      deadClients.forEach(client => testAgentSseClients.delete(client));
     }
+
+    // --- Generic File Watcher Setup ---
+    function watchStatusFile(filePath, broadcastFunction, agentName) {
+      const agentDir = path.dirname(filePath);
+      if (!fs.existsSync(agentDir)) {
+        fs.mkdirSync(agentDir, { recursive: true });
+      }
+
+      function setupWatcher() {
+        try {
+          if (fs.existsSync(filePath)) {
+            const watcher = fs.watch(filePath, (eventType, filename) => {
+              if (eventType === 'change') {
+                try {
+                  const statusData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                  broadcastFunction(statusData);
+                } catch (error) {
+                  // Ignore read errors, file might be being written or is empty
+                }
+              }
+            });
+            console.log(`📁 Watching ${agentName} agent status file for changes at ${filePath}`);
+            process.on('SIGINT', () => watcher.close());
+            return true;
+          } else {
+            return false;
+          }
+        } catch (error) {
+          console.error(`Error setting up watcher for ${agentName}:`, error);
+          return false;
+        }
+      }
+
+      // Try to set up watcher immediately
+      if (!setupWatcher()) {
+        console.log(`📁 ${agentName} agent status file does not exist yet. Checking periodically...`);
+
+        // Check every 5 seconds for the file to be created
+        const checkInterval = setInterval(() => {
+          if (setupWatcher()) {
+            clearInterval(checkInterval);
+          }
+        }, 5000);
+
+        // Clear interval on shutdown
+        process.on('SIGINT', () => clearInterval(checkInterval));
+      }
+    }
+
+    // --- Initialize Watchers ---
+    // Main Agent
+    const agentPath = path.join(__dirname, '..', 'agent');
+    const statusFilePath = path.join(agentPath, 'agent-status.json');
+    watchStatusFile(statusFilePath, broadcastAgentStatus, 'Main');
+
+    // Test Agent
+    const testAgentPath = path.join(__dirname, '..', 'agents');
+    const testStatusFilePath = path.join(testAgentPath, 'test-agent-status.json');
+    watchStatusFile(testStatusFilePath, broadcastTestAgentStatus, 'Test');
 
     // Cleanup on server shutdown
     process.on('SIGINT', () => {
@@ -371,6 +431,86 @@ async function initializeServer() {
       }
     });
 
+    // Test Agent endpoint
+    app.post('/api/test-agent/run', (req, res) => {
+      // Check if user is authenticated
+      if (!req.session.userId) {
+        return res.status(401).json({
+          error: 'Authentication required',
+          message: 'Please sign in to access Test Agent'
+        });
+      }
+
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: 'Code to test is required' });
+      }
+
+      console.log(`🧪 Test Agent request from user ${req.session.user.email}`);
+
+      // Find the most recently created project by the main agent
+      let targetProjectPath = null;
+      try {
+        const agentPath = path.join(__dirname, '..', 'agent');
+        const projects = fs.readdirSync(agentPath)
+          .filter(item => {
+            const fullPath = path.join(agentPath, item);
+            return fs.statSync(fullPath).isDirectory() &&
+              item !== 'node_modules' &&
+              !item.endsWith('.json');
+          })
+          .map(item => ({
+            name: item,
+            path: path.join(agentPath, item),
+            created: fs.statSync(path.join(agentPath, item)).birthtime // Use birthtime for creation
+          }))
+          .sort((a, b) => b.created - a.created);
+
+        if (projects.length > 0) {
+          targetProjectPath = projects[0].path;
+          console.log(`🎯 Target project: ${projects[0].name} (${targetProjectPath})`);
+        } else {
+          return res.status(404).json({
+            error: 'No project found to test',
+            message: 'Please create a project with the main agent first'
+          });
+        }
+      } catch (error) {
+        console.error('Error finding project to test:', error);
+        return res.status(500).json({
+          error: 'Failed to find project',
+          message: error.message
+        });
+      }
+
+      const testAgentScriptPath = path.join(__dirname, '..', 'agents', 'test_agent.js');
+
+      const testAgentProcess = spawn('node', [`"${testAgentScriptPath}"`], {
+        cwd: path.dirname(testAgentScriptPath),
+        shell: true,
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          USER_CODE_TO_TEST: code,
+          TARGET_PROJECT_PATH: targetProjectPath
+        }
+      });
+
+      testAgentProcess.stdout.on('data', (data) => {
+        console.log('🧪 Test Agent output:', data.toString());
+      });
+
+      testAgentProcess.stderr.on('data', (data) => {
+        console.error('🧪 Test Agent error:', data.toString());
+      });
+
+      testAgentProcess.on('close', (code) => {
+        console.log(`🧪 Test Agent process exited with code ${code}`);
+      });
+
+      res.json({ success: true, message: 'Test agent started' });
+    });
+
     // Agent mode endpoint
     app.post('/api/agent-mode', (req, res) => {
       const { scriptPath, ...args } = req.body;
@@ -394,6 +534,60 @@ async function initializeServer() {
         console.log(`Script exited with code ${code}`);
         res.json({ status: 'Script executed', code });
       });
+    });
+
+    // Get test analysis report endpoint
+    app.get('/api/test-agent/report', (req, res) => {
+      // Check authentication
+      if (!req.session.userId) {
+        return res.status(401).json({
+          error: 'Authentication required',
+          message: 'Please sign in to access test reports'
+        });
+      }
+
+      try {
+        // Find the latest project with a test report
+        const agentPath = path.join(__dirname, '..', 'agent');
+        const projects = fs.readdirSync(agentPath)
+          .filter(item => {
+            const fullPath = path.join(agentPath, item);
+            return fs.statSync(fullPath).isDirectory() && item !== 'node_modules';
+          })
+          .map(item => ({
+            name: item,
+            path: path.join(agentPath, item),
+            created: fs.statSync(path.join(agentPath, item)).mtime
+          }))
+          .sort((a, b) => b.created - a.created);
+
+        // Look for a project with a test analysis report
+        for (const project of projects) {
+          const reportPath = path.join(project.path, 'TEST_ANALYSIS_REPORT.md');
+          if (fs.existsSync(reportPath)) {
+            const reportContent = fs.readFileSync(reportPath, 'utf8');
+            return res.json({
+              success: true,
+              projectName: project.name,
+              reportPath: reportPath,
+              reportContent: reportContent,
+              timestamp: fs.statSync(reportPath).mtime
+            });
+          }
+        }
+
+        res.status(404).json({
+          error: 'No test report found',
+          message: 'No test analysis report found. Please run the test agent first.'
+        });
+
+      } catch (error) {
+        console.error('Error fetching test report:', error);
+        res.status(500).json({
+          error: 'Failed to fetch test report',
+          message: error.message
+        });
+      }
     });
 
     // Error handling middleware

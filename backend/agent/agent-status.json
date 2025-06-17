@@ -1,10 +1,8 @@
 {
   "status": "completed",
-  "message": "✅ Project \"CharacterMovementProject\" created and opened in VSCode!",
-  "projectName": "CharacterMovementProject",
-  "projectPath": "C:\\AI-coder-main\\backend\\agent\\CharacterMovementProject",
-  "toolCall": null,
-  "toolResult": null,
-  "timestamp": "2025-06-14T17:02:47.747Z",
-  "sessionId": "bWFrZSBhIG"
+  "message": "✅ Project \"calculator-app\" created and opened in VSCode!",
+  "projectName": "calculator-app",
+  "projectPath": "C:\\AI-coder-main - with-test-agent\\backend\\agent\\calculator-app",
+  "timestamp": "2025-06-17T01:47:37.018Z",
+  "sessionId": "Y3JlYXRlIG"
 }

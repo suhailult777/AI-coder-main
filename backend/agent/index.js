@@ -30,13 +30,192 @@ function getWheatherInfo(city) {
 function executeCommand(command) {
     return new Promise((resolve, reject) => {
         console.log(`⚡ Executing: ${command}`);
-        exec(command, { shell: 'powershell.exe' }, function (err, stdout, stderr) {
+        
+        // Analyze the command to provide better status updates
+        let commandType = '';
+        let fileName = '';
+        let content = '';
+        let directoryName = '';
+
+        // Enhanced command parsing for better streaming
+        if (command.includes('New-Item') && command.includes('-ItemType Directory')) {
+            commandType = 'creating_directory';
+            // Multiple patterns for directory creation
+            let match = command.match(/New-Item\s+.*?-Path\s+["']([^"']+)["']/);
+            if (!match) match = command.match(/New-Item\s+["']([^"']+)["']\s+.*?-ItemType\s+Directory/);
+            if (!match) match = command.match(/mkdir\s+["']([^"']+)["']/);
+            if (match) directoryName = match[1];
+        } else if (command.includes('Out-File') || command.includes('>') || command.includes('Set-Content') || command.includes('Add-Content')) {
+            commandType = 'creating_file';
+            
+            // Enhanced file path extraction
+            let fileMatch = command.match(/-FilePath\s+["']([^"']+)["']/);
+            if (!fileMatch) fileMatch = command.match(/>\s*["']([^"']+)["']/);
+            if (!fileMatch) fileMatch = command.match(/-Path\s+["']([^"']+)["']/);
+            if (!fileMatch) fileMatch = command.match(/Out-File\s+["']([^"']+)["']/);
+            
+            if (fileMatch) {
+                fileName = fileMatch[1];
+            }
+
+            // Super enhanced content extraction for various PowerShell formats
+            if (command.includes("@'") && command.includes("'@")) {
+                // Here-string format: @'<content>'@ - handles multi-line content
+                const contentMatch = command.match(/@'([\s\S]*?)'@/);
+                if (contentMatch) {
+                    content = contentMatch[1];
+                    // Remove leading/trailing newlines but preserve internal formatting
+                    content = content.replace(/^\n+/, '').replace(/\n+$/, '');
+                }
+            } else if (command.includes('@"') && command.includes('"@')) {
+                // Here-string format with double quotes: @"<content>"@
+                const contentMatch = command.match(/@"([\s\S]*?)"@/);
+                if (contentMatch) {
+                    content = contentMatch[1];
+                    content = content.replace(/^\n+/, '').replace(/\n+$/, '');
+                }
+            } else if (command.includes('echo ') || command.includes('Write-Output ')) {
+                // Echo format: echo "content"
+                const echoMatch = command.match(/(?:echo|Write-Output)\s+["']([^"']*?)["']/s);
+                if (echoMatch) {
+                    content = echoMatch[1];
+                }
+            } else if (command.includes('Set-Content') || command.includes('Add-Content')) {
+                // Set-Content format: Set-Content -Path "file" -Value "content"
+                const contentMatch = command.match(/-Value\s+["']([^"']*?)["']/s);
+                if (contentMatch) {
+                    content = contentMatch[1];
+                }
+            } else {
+                // Try to extract content from pipe operations
+                const pipeMatch = command.match(/^(.*?)\s*\|\s*Out-File/);
+                if (pipeMatch) {
+                    const beforePipe = pipeMatch[1].trim();
+                    if (beforePipe.startsWith('"') && beforePipe.endsWith('"')) {
+                        content = beforePipe.slice(1, -1);
+                    } else if (beforePipe.startsWith("'") && beforePipe.endsWith("'")) {
+                        content = beforePipe.slice(1, -1);
+                    }
+                }
+            }
+        }
+
+        // Send detailed status update with enhanced file content preview
+        if (commandType === 'creating_directory') {
+            updateStatus('creating', `Creating directory: ${directoryName}`, null, null, {
+                action: 'create_directory',
+                path: directoryName,
+                directoryName: directoryName
+            });
+        } else if (commandType === 'creating_file') {
+            // Determine file type for syntax highlighting
+            const fileExt = fileName.split('.').pop()?.toLowerCase();
+            const fileType = {
+                'html': 'HTML',
+                'css': 'CSS', 
+                'js': 'JavaScript',
+                'json': 'JSON',
+                'md': 'Markdown',
+                'txt': 'Text',
+                'py': 'Python',
+                'java': 'Java',
+                'cpp': 'C++',
+                'c': 'C',
+                'ts': 'TypeScript',
+                'jsx': 'React JSX',
+                'tsx': 'React TSX',
+                'vue': 'Vue'
+            }[fileExt] || 'Code';
+
+            // Clean up content - remove Windows line endings and normalize
+            const cleanContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const linesOfCode = cleanContent ? cleanContent.split('\n').length : 0;
+            const contentLength = cleanContent.length;
+
+            // Create a more detailed preview
+            const previewLength = Math.min(800, contentLength);
+            const contentPreview = contentLength > previewLength ? 
+                cleanContent.substring(0, previewLength) + '\n\n... (content continues)' : 
+                cleanContent;
+
+            updateStatus('creating', `Writing ${fileType} file: ${fileName}`, null, null, {
+                action: 'create_file',
+                fileName: fileName,
+                fileType: fileType,
+                fileExtension: fileExt,
+                fileContent: cleanContent, // Full content
+                contentPreview: contentPreview,
+                contentLength: contentLength,
+                linesOfCode: linesOfCode,
+                hasContent: Boolean(cleanContent && cleanContent.trim())
+            });
+        }        exec(command, { shell: 'powershell.exe' }, function (err, stdout, stderr) {
             if (err) {
                 console.error(`❌ Command failed: ${err.message}`);
+                updateStatus('error', `Command failed: ${err.message}`, null, null, {
+                    action: 'command_failed',
+                    command: command.substring(0, 100) + (command.length > 100 ? '...' : ''),
+                    error: err.message
+                });
                 return reject(err);
             }
+            
             const result = `stdout: ${stdout}\nstderr: ${stderr}`;
             console.log(`✅ Command completed: ${result.substring(0, 200)}...`);
+            
+            // Send detailed completion status
+            if (commandType === 'creating_file') {
+                const fileExt = fileName.split('.').pop()?.toLowerCase();
+                const fileType = {
+                    'html': 'HTML',
+                    'css': 'CSS',
+                    'js': 'JavaScript',
+                    'json': 'JSON',
+                    'md': 'Markdown',
+                    'txt': 'Text',
+                    'py': 'Python',
+                    'java': 'Java',
+                    'cpp': 'C++',
+                    'c': 'C',
+                    'ts': 'TypeScript',
+                    'jsx': 'React JSX',
+                    'tsx': 'React TSX',
+                    'vue': 'Vue'
+                }[fileExt] || 'Code';
+
+                const cleanContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                const actualSize = cleanContent.length;
+                const actualLines = cleanContent ? cleanContent.split('\n').length : 0;
+
+                updateStatus('file_created', `✅ ${fileType} file created: ${fileName}`, null, null, {
+                    action: 'file_completed',
+                    fileName: fileName,
+                    fileType: fileType,
+                    fileExtension: fileExt,
+                    fileSize: actualSize,
+                    linesOfCode: actualLines,
+                    success: true,
+                    hasContent: Boolean(cleanContent && cleanContent.trim()),
+                    relativePath: fileName.includes('/') ? fileName.split('/').slice(-1)[0] : fileName
+                });
+            } else if (commandType === 'creating_directory') {
+                updateStatus('directory_created', `✅ Directory created: ${directoryName}`, null, null, {
+                    action: 'directory_completed',
+                    directoryName: directoryName,
+                    path: directoryName,
+                    success: true,
+                    relativePath: directoryName.includes('/') ? directoryName.split('/').slice(-1)[0] : directoryName
+                });
+            } else {
+                // For other commands, provide generic completion info
+                updateStatus('command_completed', `✅ Command executed successfully`, null, null, {
+                    action: 'command_completed',
+                    command: command.substring(0, 100) + (command.length > 100 ? '...' : ''),
+                    success: true,
+                    output: result.substring(0, 200) + (result.length > 200 ? '...' : '')
+                });
+            }
+
             resolve(result);
         });
     });
@@ -48,21 +227,47 @@ const TOOLS_MAP = {
 };
 
 // Function to update status for the web interface
-function updateStatus(status, message, projectName = null, projectPath = null, toolCall = null, toolResult = null) {
+function updateStatus(status, message, projectName = null, projectPath = null, additionalData = null, toolResult = null) {
     const statusData = {
         status: status,
         message: message,
         projectName: projectName,
         projectPath: projectPath,
-        toolCall: toolCall,
-        toolResult: toolResult,
         timestamp: new Date().toISOString(),
         sessionId: process.env.USER_PROMPT ? Buffer.from(process.env.USER_PROMPT).toString('base64').substring(0, 10) : 'unknown'
     };
 
+    // Merge additional data if provided
+    if (additionalData) {
+        Object.assign(statusData, additionalData);
+    }
+
+    // Add tool result if provided
+    if (toolResult) {
+        statusData.toolResult = toolResult;
+    }
+
+    // Ensure backward compatibility with legacy format
+    if (additionalData && additionalData.tool && additionalData.input) {
+        statusData.toolCall = {
+            tool: additionalData.tool,
+            input: additionalData.input,
+            description: additionalData.toolDescription || additionalData.tool,
+            inputDescription: additionalData.inputDescription || additionalData.input
+        };
+    }
+
     try {
         fs.writeFileSync('agent-status.json', JSON.stringify(statusData, null, 2));
         console.log(`📊 Status updated: ${status} - ${message}`);
+        
+        // Log additional details for debugging
+        if (additionalData && additionalData.action) {
+            console.log(`📊 Action: ${additionalData.action}`);
+        }
+        if (additionalData && (additionalData.fileName || additionalData.directoryName)) {
+            console.log(`📊 Target: ${additionalData.fileName || additionalData.directoryName}`);
+        }
     } catch (error) {
         console.error('❌ Failed to write status file:', error.message);
     }
@@ -269,11 +474,31 @@ async function init() {
                 console.error('❌ Failed to parse JSON response:', responseText);
                 console.error('Parse error:', parseError.message);
                 break;
-            } if (parsed_response.step && parsed_response.step === "think") {
+            }            if (parsed_response.step && parsed_response.step === "think") {
                 console.log(`🧠: ${parsed_response.content}`);
-                updateStatus('thinking', `AI is thinking: ${parsed_response.content}`);
+                
+                // Enhanced thinking status with categorization
+                let thinkingCategory = 'planning';
+                const thinkingContent = parsed_response.content.toLowerCase();
+                
+                if (thinkingContent.includes('create') || thinkingContent.includes('file') || thinkingContent.includes('folder')) {
+                    thinkingCategory = 'file_planning';
+                } else if (thinkingContent.includes('html') || thinkingContent.includes('css') || thinkingContent.includes('javascript')) {
+                    thinkingCategory = 'code_planning';
+                } else if (thinkingContent.includes('structure') || thinkingContent.includes('organize')) {
+                    thinkingCategory = 'structure_planning';
+                } else if (thinkingContent.includes('tool') || thinkingContent.includes('execute')) {
+                    thinkingCategory = 'tool_planning';
+                }
+                
+                updateStatus('thinking', parsed_response.content, null, null, {
+                    action: 'thinking',
+                    category: thinkingCategory,
+                    content: parsed_response.content,
+                    timestamp: new Date().toISOString()
+                });
                 continue;
-            } if (parsed_response.step && parsed_response.step === "output") {
+            }if (parsed_response.step && parsed_response.step === "output") {
                 console.log(`🤖: ${parsed_response.content}`);
                 updateStatus('finalizing', 'Task completed! Opening project in VSCode...');
 
@@ -282,15 +507,66 @@ async function init() {
                 await openCreatedProjectInVSCode();
 
                 break;
-            } if (parsed_response.step && parsed_response.step === "action") {
+            }            if (parsed_response.step && parsed_response.step === "action") {
                 const tool = parsed_response.tool
                 const input = parsed_response.input
 
-                updateStatus('executing', `Executing: ${tool}`, null, null, { tool, input }, null);
+                // Enhanced tool call status with detailed information
+                let toolDescription = tool;
+                let inputDescription = input;
+                
+                if (tool === 'executeCommand') {
+                    // Parse the command to provide better description
+                    const cmd = input.toString();
+                    if (cmd.includes('New-Item') && cmd.includes('-ItemType Directory')) {
+                        const match = cmd.match(/New-Item\s+.*?-Path\s+["']([^"']+)["']/);
+                        if (match) {
+                            toolDescription = 'Creating Directory';
+                            inputDescription = `Creating folder: ${match[1]}`;
+                        }
+                    } else if (cmd.includes('Out-File') || cmd.includes('>') || cmd.includes('Set-Content')) {
+                        const fileMatch = cmd.match(/-FilePath\s+["']([^"']+)["']/) || 
+                                         cmd.match(/>\s*["']([^"']+)["']/) ||
+                                         cmd.match(/-Path\s+["']([^"']+)["']/);
+                        if (fileMatch) {
+                            const fileName = fileMatch[1];
+                            const fileExt = fileName.split('.').pop()?.toLowerCase();
+                            const fileType = {
+                                'html': 'HTML',
+                                'css': 'CSS',
+                                'js': 'JavaScript',
+                                'json': 'JSON',
+                                'md': 'Markdown',
+                                'txt': 'Text',
+                                'py': 'Python'
+                            }[fileExt] || 'Code';
+                            toolDescription = `Writing ${fileType} File`;
+                            inputDescription = `Creating file: ${fileName}`;
+                        }
+                    } else if (cmd.includes('code')) {
+                        toolDescription = 'Opening VSCode';
+                        inputDescription = 'Opening project in Visual Studio Code';
+                    } else {
+                        toolDescription = 'Executing Command';
+                        inputDescription = cmd.length > 80 ? cmd.substring(0, 80) + '...' : cmd;
+                    }
+                }
+
+                updateStatus('executing', `Executing: ${toolDescription}`, null, null, { 
+                    tool, 
+                    input,
+                    toolDescription,
+                    inputDescription,
+                    timestamp: new Date().toISOString()
+                }, null);
 
                 if (!TOOLS_MAP[tool]) {
                     console.error(`❌ Unknown tool: ${tool}`);
-                    updateStatus('error', `Unknown tool: ${tool}`);
+                    updateStatus('error', `Unknown tool: ${tool}`, null, null, {
+                        action: 'tool_error',
+                        tool,
+                        error: `Tool '${tool}' not found`
+                    });
                     break;
                 }
 
@@ -298,8 +574,23 @@ async function init() {
                     const value = await TOOLS_MAP[tool](input);
                     console.log(`⛏️: Tool Call ${tool}: (${input}) ${value}`);
 
-                    // Send status update with tool result
-                    updateStatus('tool_completed', `Completed: ${tool}`, null, null, { tool, input }, value.substring(0, 200) + (value.length > 200 ? '...' : ''));
+                    // Enhanced tool result with truncation and formatting
+                    const resultPreview = value.length > 300 ? 
+                        value.substring(0, 300) + '\n... (output truncated)' : 
+                        value;
+
+                    // Send status update with detailed tool result
+                    updateStatus('tool_completed', `Completed: ${toolDescription}`, null, null, { 
+                        tool, 
+                        input,
+                        toolDescription,
+                        inputDescription
+                    }, {
+                        fullResult: value,
+                        preview: resultPreview,
+                        length: value.length,
+                        truncated: value.length > 300
+                    });
 
                     messages.push({
                         "role": "assistant",
@@ -307,7 +598,12 @@ async function init() {
                     });
                 } catch (toolError) {
                     console.error(`❌ Tool execution error for ${tool}:`, toolError.message);
-                    updateStatus('error', `Tool error: ${tool} - ${toolError.message}`);
+                    updateStatus('error', `Tool error: ${toolDescription} - ${toolError.message}`, null, null, {
+                        action: 'tool_error',
+                        tool,
+                        toolDescription,
+                        error: toolError.message
+                    });
                     messages.push({
                         "role": "assistant",
                         "content": JSON.stringify({ "step": "observe", "content": `Error: ${toolError.message}` })

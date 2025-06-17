@@ -65,7 +65,7 @@
     <div class="main-content">
         <div class="title-container">
             <h1>The AI-Powered Code Editor</h1>
-            <span id="agentModeIndicator" class="agent-mode-indicator" style="display: none;">⚡ AGENT MODE ACTIVE</span>
+            <span id="agentModeIndicator" class="agent-mode-indicator">⚡ AGENT MODE ACTIVE</span>
         </div>
         <p>Supercharge your coding workflow with AI-powered code generation, now featuring Google Gemini 2.0 Flash.</p>
 
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Agent Mode Example Prompts -->
-        <div class="example-prompts" id="agentModePrompts" style="display: none;">
+        <div class="example-prompts" id="agentModePrompts">
             <h4>Agent Mode - Advanced Examples:</h4>
             <button
                 onclick="setPrompt('Build a complete REST API with user authentication, database models, and error handling')">Full
@@ -132,7 +132,7 @@
             </div>
 
             <!-- Model selector for Agent Mode (Gemini only) -->
-            <div class="model-selector" id="agentModeModelSelector" style="display: none;">
+            <div class="model-selector" id="agentModeModelSelector">
                 <label for="agent-model-select">Agent Model:</label>
                 <select id="agent-model-select">
                     <option value="google/gemini-2.0-flash-exp:free" selected>Gemini 2.0 Flash (Free)</option>
@@ -146,7 +146,7 @@
         </div>
 
         <!-- Normal Mode Output Container -->
-        <div class="output-container" id="normalModeOutput" style="display: none;">
+        <div class="output-container" id="normalModeOutput">
             <div class="output-header">
                 <span class="output-title">Generated Code - Normal Mode</span>
                 <button id="normalCopyButton" class="copy-button" title="Copy to clipboard">
@@ -157,7 +157,7 @@
         </div>
 
         <!-- Agent Mode Output Container -->
-        <div class="output-container agent-output-container" id="agentModeOutput" style="display: none;">
+        <div class="output-container agent-output-container" id="agentModeOutput">
             <div class="output-header">
                 <span class="output-title">🤖 Agent Mode Results</span>
                 <button id="agentCopyButton" class="copy-button" title="Copy to clipboard">
@@ -166,6 +166,24 @@
             </div>
             <pre><code id="agentOutput" class="language-html"></code></pre>
         </div>
+
+        <!-- Test Button Container -->
+        <div id="testButtonContainer" class="test-button-container">
+            <p>Would you like to test the application?</p>
+            <button id="testAppButton" class="test-app-button">Test Application</button>
+        </div>
+
+        <!-- Test Agent Output Container -->
+        <div id="testAgentOutputContainer" class="output-container agent-output-container">
+            <div class="output-header">
+                <span class="output-title"><i class="fas fa-vial"></i> Test Agent</span>
+                <span class="stream-status status-inactive">INACTIVE</span>
+            </div>
+            <div class="agent-stream-output">
+                <pre id="testAgentOutput"></pre>
+            </div>
+        </div>
+
     </div>
 
     <!-- Auth Modal -->
@@ -209,7 +227,7 @@
                             </div>
                             <button type="submit" class="auth-submit-btn">
                                 <span class="btn-text">Sign In</span>
-                                <span class="btn-loader" style="display: none;">
+                                <span class="btn-loader">
                                     <span class="spinner"></span>
                                 </span>
                             </button>
@@ -227,7 +245,7 @@
                             <div class="form-group">
                                 <label for="registerPassword">Password</label>
                                 <input type="password" id="registerPassword" name="password" required>
-                                <div class="password-strength" id="passwordStrength" style="display: none;">
+                                <div class="password-strength" id="passwordStrength">
                                     <div class="strength-bar">
                                         <div class="strength-fill"></div>
                                     </div>
@@ -242,7 +260,7 @@
                             </div>
                             <button type="submit" class="auth-submit-btn">
                                 <span class="btn-text">Create Account</span>
-                                <span class="btn-loader" style="display: none;">
+                                <span class="btn-loader">
                                     <span class="spinner"></span>
                                 </span>
                             </button>
@@ -270,7 +288,7 @@
                     </button>
 
                     <!-- Error Alert -->
-                    <div id="authError" class="auth-error" style="display: none;">
+                    <div id="authError" class="auth-error">
                         <div class="error-icon">⚠️</div>
                         <span class="error-text"></span>
                     </div>
